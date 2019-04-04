@@ -1,0 +1,52 @@
+import numpy as np
+import pickle
+print("hello")
+from ann import ANN
+
+def main():
+  # y = N, // X = dxN // Y=KxN
+  X_train, y_train , Y_train= load_data(batch_file = "data/data_batch_1")
+  print("Y: ", Y_train.shape)
+  X_val, y_val , Y_val = load_data(batch_file = "data/data_batch_2")
+  X_test, y_test , Y_test = load_data(batch_file = "data/test_batch")
+  print()
+  ann1 = ANN.init(X, Y)
+  #not tested yet
+  y_pred = ann1.evaluate_lassifier(X_train(:, 1:5), W, b)
+  print(y_pred)
+
+
+def load_data(batch_file = "data/data_batch_1", num=7):
+  with open(batch_file, 'rb') as fo:
+    data = pickle.load(fo, encoding='bytes')
+    X = preprocess(data[b"data"])
+    y = np.array(data[b"labels"])
+    Y = one_hot(y)
+    print(X.shape)
+  return X[:num].T, y[:num], Y[:num].T
+
+def preprocess(dataset):
+  """
+  Preprocess the data:
+  scale from pixel values to values between 0 and 1 and convert to grayscale
+  """
+  r=0.3
+  g=0.59
+  b = 0.11
+  # convert to grayscale
+  chunk = dataset.reshape(dataset.shape[0], 1024, 3)
+  chunk = r * chunk[:, :, 0] + g * chunk[:, :,1] + b * chunk[:, :, 2]
+  # scaling the values
+  chunk = chunk / 255.0
+  print("rst shape", chunk.shape)
+  return chunk
+
+def one_hot(y):
+  Y = np.zeros((y.shape[0], 10))
+  Y[np.arange(y.shape[0]), y] = 1
+  
+  return Y
+ 
+
+if __name__ == "__main__":
+  main()
