@@ -16,7 +16,7 @@ class ANN:
         "m_weights": 0, #mean of the weights
         "sigma_weights": 0.01, #variance of the weights
         "labda": 0.5, # regularization parameter
-        "batch_size":2, # number of examples per minibatch
+        "batch_size":5, # number of examples per minibatch
         "epochs":2 #number of epochs
 
     }
@@ -36,32 +36,36 @@ class ANN:
     Initialize weight matrix
     """
     w = np.random.normal(self.m_weights, self.sigma_weights, (self.k, self.d))
-    print("w shape: ", w.shape) #should be Kxd
     return w
 
   def init_bias(self):
     """ 
-    Initialize weight matrix
+    Initialize bias vector
     """
     b = np.random.normal(self.m_weights, self.sigma_weights, (self.k,1))
-    print("b shape: ", b.shape) # should be Kx1
     return b
 
   def train(self, X_train, Y_train):
+    """
+    train using minibatch gradient descent
+    """
     # divide set into mini batches in some random way
-    for i in range(epochs):
+    self.cost_history = []
+    for i in range(self.epochs):
       print("--- epoch ", i, " ---")
-      num_batches = self.n/self.batch_size
-      for j in num_batches:
+      num_batches = int(self.n/self.batch_size)
+      for j in range(num_batches-1):
         print("training on batch ", j, " out of ", num_batches)
-        j_start = (j-1) * self.batch_size + 1
-        j_end = j*self.batch_size
+        j_start = j * self.batch_size
+        j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:,j_start:j_end]
         Y_batch = Y_train[:,j_start:j_end]
         Y_pred = self.evaluate(X_batch)
-        grad_w, grad_b = self.compute_gradients(Y_pred, Y_batch)
+        grad_w, grad_b = self.compute_gradients(X_batch, Y_pred, Y_batch)
         self.w = self.w - self.lr*grad_w
         self.b = self.b - self.lr*grad_b
+        self.compute_cost(X_batch, Y_batch)
+    return self.cost_history
 
   def evaluate(self,test_data):
     """
@@ -76,37 +80,59 @@ class ANN:
     return y_pred
 
   def softmax(self, y_pred_lin):
+    """
+    compute softmax activation, used in evaluating the prediction of the model
+    """
     ones = np.ones(y_pred_lin.shape[0])
     y_pred = np.exp(y_pred_lin) / np.dot(ones.T, np.exp(y_pred_lin))
     return y_pred
 
   def compute_cost(self,data, Y_true):
-    Y_pred = self.evaluate_classifier(X)
+    """
+    compute the cost based on the current estimations of w and b
+    """
+    Y_pred = self.evaluate(data)
     num_exampl = data.shape[1]
     rglz = self.labda * (self.w**2).sum()
     cross_ent = self.cross_entropy(Y_true, Y_pred)
     cost = 1 / num_exampl * cross_ent + rglz
+    self.cost_history.append(cost)
     # times reg
     return cost
 
   def cross_entropy(self,Y_true, Y_pred):
-    return -np.log(np.dot(Y_true.T, Y_pred))
+    """
+    compute the cross entropy. Used for computing the cost.
+    """
+    before_log = np.sum(Y_true * Y_pred, axis=0)
+    cross_ent = np.sum(-np.log(before_log))
+    return cross_ent
 
   def compute_accuracy(self,X, y_true):
+    """
+    Compute the accuracy of the y_predictions of the model for a given data set
+    """
     # y_pred = self.evaluate_classifier(X)
     # and then compare y_pred with y_true
     accuracy = 1
     return accuracy
 
-  def compute_gradients(self, y_true_batch, y_pred_batch):
+  def compute_gradients(self, X_batch, y_true_batch, y_pred_batch):
+    """
+    compute the gradients of the loss, so the parameters can be updated in the direction of the steepest gradient. 
+    """
     grad_batch = self.compute_gradient_batch(y_true_batch, y_pred_batch)
     grad_loss_w = 1/self.batch_size * np.dot(grad_batch, X_batch.T)
-    grad_loss_b = 1/self.batch_size * np.dot(grad_batch, np.ones(self.batch_size))
+    grad_loss_b = 1/self.batch_size * np.dot(grad_batch, np.ones((self.batch_size,1)))
+    # regularization is added to the weights but not to the bias
     grad_w = grad_loss_w + 2*self.labda*self.w
     grad_b = grad_loss_b
     return grad_w, grad_b
 
   def compute_gradient_batch(self, y_true_batch, y_pred_batch):
+    """
+    compute the gradient of a batch
+    """
     grad_batch = - (y_true_batch - y_pred_batch)
     return grad_batch
 
