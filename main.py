@@ -1,19 +1,24 @@
 import numpy as np
+print("imported numpy")
 import pickle
-print("hello")
+print("imported pickle")
 from ann import ANN
+print("imported ann")
 
 def main():
   # y = N, // X = dxN // Y=KxN
   X_train, y_train , Y_train= load_data(batch_file = "data/data_batch_1")
-  print("Y: ", Y_train.shape)
+  print("loaded train data")
+  print("X_train: ", X_train.shape)
+  print("Y_train: ", Y_train.shape)
   X_val, y_val , Y_val = load_data(batch_file = "data/data_batch_2")
   X_test, y_test , Y_test = load_data(batch_file = "data/test_batch")
-  print()
-  ann1 = ANN.init(X, Y)
+  print("loaded all data sets")
+  ann1 = ANN(X_train, Y_train)
+  print("initialized ann")
   #not tested yet
-  y_pred = ann1.evaluate_lassifier(X_train(:, 1:5), W, b)
-  print(y_pred)
+  ann1.train(X_train, Y_train)
+  print("done training")
 
 
 def load_data(batch_file = "data/data_batch_1", num=7):
@@ -44,7 +49,6 @@ def preprocess(dataset):
 def one_hot(y):
   Y = np.zeros((y.shape[0], 10))
   Y[np.arange(y.shape[0]), y] = 1
-  
   return Y
  
 
