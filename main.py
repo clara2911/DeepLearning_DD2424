@@ -1,9 +1,7 @@
 import numpy as np
-print("imported numpy")
 import pickle
-print("imported pickle")
 from ann import ANN
-print("imported ann")
+import matplotlib.pyplot as plt
 
 def main():
   # y = N, // X = dxN // Y=KxN
@@ -17,11 +15,14 @@ def main():
   ann1 = ANN(X_train, Y_train)
   print("initialized ann")
   #not tested yet
-  ann1.train(X_train, Y_train)
+  cost_history = ann1.train(X_train, Y_train)
+  print("cost history; ", cost_history)
+  plt.plot(cost_history)
+  plt.show()
   print("done training")
 
 
-def load_data(batch_file = "data/data_batch_1", num=7):
+def load_data(batch_file = "data/data_batch_1", num=10):
   with open(batch_file, 'rb') as fo:
     data = pickle.load(fo, encoding='bytes')
     X = preprocess(data[b"data"])
@@ -43,12 +44,12 @@ def preprocess(dataset):
   chunk = r * chunk[:, :, 0] + g * chunk[:, :,1] + b * chunk[:, :, 2]
   # scaling the values
   chunk = chunk / 255.0
-  print("rst shape", chunk.shape)
   return chunk
 
 def one_hot(y):
   Y = np.zeros((y.shape[0], 10))
   Y[np.arange(y.shape[0]), y] = 1
+  
   return Y
  
 
