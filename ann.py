@@ -4,7 +4,9 @@ Authors: Clara Tump
 """
 
 import numpy as np
-import math 
+import math
+import matplotlib.pyplot as plt
+
 class ANN:
 
   def __init__(self, data, targets, **kwargs):
@@ -12,12 +14,12 @@ class ANN:
     Initialize Neural Network with data and parameters
     """
     var_defaults = {
-        "lr": 0.01, #learning rate
+        "lr": 0.5, #learning rate
         "m_weights": 0, #mean of the weights
-        "sigma_weights": 0.01, #variance of the weights
+        "sigma_weights": 0.1, #variance of the weights
         "labda": 0, # regularization parameter
         "batch_size":5, # number of examples per minibatch
-        "epochs":4 #number of epochs
+        "epochs":20 #number of epochs
 
     }
 
@@ -58,7 +60,7 @@ class ANN:
       print("----------- epoch ", i, " -----------")
       num_batches = int(self.n/self.batch_size)
       for j in range(num_batches):
-        print("training on batch ", j, " out of ", num_batches)
+        #print("training on batch ", j+1, " out of ", num_batches)
         j_start = j * self.batch_size
         j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:,j_start:j_end]
@@ -68,7 +70,7 @@ class ANN:
         self.w = self.w - self.lr*grad_w
         self.b = self.b - self.lr*grad_b
       self.report_perf(X_train, Y_train, X_val, Y_val)
-    self.plot_cost(cost_hist_tr, cost_hist_val, acc_hist_tr, acc_hist_val)
+    self.plot_cost_and_acc()
 
   def evaluate(self,test_data):
     """
@@ -95,19 +97,38 @@ class ANN:
     compute the cost based on the current estimations of w and b
     """
     Y_pred = self.evaluate(data)
+    print("Y TRUE")
+    print(Y_true)
+    print("Y PRED")
+    print(Y_pred)
     num_exampl = data.shape[1]
-    rglz = self.labda * (self.w**2).sum()
+    #rglz = self.labda * (self.w**2).sum()
+    # TODO change this
+    rglz = 0
     cross_ent = self.cross_entropy(Y_true, Y_pred)
-    cost = 1 / num_exampl * cross_ent + rglz
-    # times reg
+    print("cross ent: ", cross_ent)
+    print("num examples: ", num_exampl)
+    cost = cross_ent / num_exampl + rglz
+    print("cost: ")
+    print(cost)
     return cost
 
   def cross_entropy(self,Y_true, Y_pred):
     """
     compute the cross entropy. Used for computing the cost.
     """
-    before_log = np.sum(Y_true * Y_pred, axis=0)
-    cross_ent = np.sum(-np.log(before_log))
+    mult = Y_true * Y_pred
+    print("multiplication: ")
+    print(mult)
+    vec = np.sum(mult, axis=0)
+    print("vec: ")
+    print(vec)
+    log = -np.log(vec)
+    print("log: ")
+    print(log)
+    cross_ent = np.sum(log, axis=0)
+    print("cross_ent: ")
+    print(cross_ent)
     return cross_ent
 
   def compute_accuracy(self,Y_pred, Y_true):
@@ -121,6 +142,8 @@ class ANN:
     # here the ys are lowercase so they are the index vectors, 
     # not the one hot encodings 
     correct = len(np.where(y_pred == y_true)[0])
+    print("y_pred: ", y_pred[:10])
+    print("y_true: ", y_true[:10])
     accuracy = correct/len(y_true)
     return accuracy
 
@@ -153,27 +176,25 @@ class ANN:
     self.cost_hist_tr.append(cost_fullset)
     self.acc_hist_tr.append(acc_fullset)
     self.cost_hist_val.append(cost_val)
-    self.cost_hist_val.append(acc_val)
+    self.acc_hist_val.append(acc_val)
     print("cost train: ", cost_fullset)
     print("accuracy train: ", acc_fullset)
 
-  def plot_cost(cost_hist_tr, cost_hist_val, acc_hist_tr, acc_hist_val):
-    x = range(1, len(cost_hist_tr) + 1)
-    plt.plot(x, cost_hist_tr, label = "train loss")
-    plt.plot(x,cost_hist_val, label = "val loss")
+  def plot_cost_and_acc(self):
+    x = list(range(1, len(self.cost_hist_tr) + 1))
+    plt.plot(x, self.cost_hist_tr, label = "train loss")
+    plt.plot(x, self.cost_hist_val, label = "val loss")
     plt.title("Loss over epochs")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
     plt.legend()
     plt.show()
-    plt.plot(x, acc_hist_tr, label = "Train accuracy")
-    plt.plot(x, acc_hist_val, label = "Val accuracy")
+    plt.plot(x, self.acc_hist_tr, label = "Train accuracy")
+    plt.plot(x, self.acc_hist_val, label = "Val accuracy")
     plt.title("Accuracy over epochs")
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
     plt.legend()
     plt.show()
-
-  
 
   
