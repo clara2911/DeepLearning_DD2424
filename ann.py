@@ -12,12 +12,12 @@ class ANN:
     Initialize Neural Network with data and parameters
     """
     var_defaults = {
-        "lr": 0.5, #learning rate
+        "lr": 0.01, #learning rate
         "m_weights": 0, #mean of the weights
         "sigma_weights": 0.01, #variance of the weights
-        "labda": 0.5, # regularization parameter
+        "labda": 0, # regularization parameter
         "batch_size":5, # number of examples per minibatch
-        "epochs":2 #number of epochs
+        "epochs":4 #number of epochs
 
     }
 
@@ -45,16 +45,19 @@ class ANN:
     b = np.random.normal(self.m_weights, self.sigma_weights, (self.k,1))
     return b
 
-  def train(self, X_train, Y_train):
+  def train(self, X_train, Y_train, X_val, Y_val):
     """
     train using minibatch gradient descent
     """
     # divide set into mini batches in some random way
-    self.cost_history = []
+    self.cost_hist_tr = []
+    self.cost_hist_val = []
+    self.acc_hist_tr = []
+    self.acc_hist_val = []
     for i in range(self.epochs):
-      print("--- epoch ", i, " ---")
+      print("----------- epoch ", i, " -----------")
       num_batches = int(self.n/self.batch_size)
-      for j in range(num_batches-1):
+      for j in range(num_batches):
         print("training on batch ", j, " out of ", num_batches)
         j_start = j * self.batch_size
         j_end = j*self.batch_size + self.batch_size
@@ -64,8 +67,8 @@ class ANN:
         grad_w, grad_b = self.compute_gradients(X_batch, Y_pred, Y_batch)
         self.w = self.w - self.lr*grad_w
         self.b = self.b - self.lr*grad_b
-        self.compute_cost(X_batch, Y_batch)
-    return self.cost_history
+      self.report_perf(X_train, Y_train, X_val, Y_val)
+    self.plot_cost(cost_hist_tr, cost_hist_val, acc_hist_tr, acc_hist_val)
 
   def evaluate(self,test_data):
     """
@@ -96,7 +99,6 @@ class ANN:
     rglz = self.labda * (self.w**2).sum()
     cross_ent = self.cross_entropy(Y_true, Y_pred)
     cost = 1 / num_exampl * cross_ent + rglz
-    self.cost_history.append(cost)
     # times reg
     return cost
 
@@ -108,13 +110,18 @@ class ANN:
     cross_ent = np.sum(-np.log(before_log))
     return cross_ent
 
-  def compute_accuracy(self,X, y_true):
+  def compute_accuracy(self,Y_pred, Y_true):
     """
     Compute the accuracy of the y_predictions of the model for a given data set
     """
-    # y_pred = self.evaluate_classifier(X)
+    y_pred = np.argmax(Y_pred, axis=0)
+    y_true = np.argmax(Y_true, axis=0)
     # and then compare y_pred with y_true
     accuracy = 1
+    # here the ys are lowercase so they are the index vectors, 
+    # not the one hot encodings 
+    correct = len(np.where(y_pred == y_true)[0])
+    accuracy = correct/len(y_true)
     return accuracy
 
   def compute_gradients(self, X_batch, y_true_batch, y_pred_batch):
@@ -135,5 +142,38 @@ class ANN:
     """
     grad_batch = - (y_true_batch - y_pred_batch)
     return grad_batch
+
+  def report_perf(self, X_train, Y_train, X_val, Y_val):
+    Y_pred_fullset = self.evaluate(X_train)
+    Y_pred_val = self.evaluate(X_val)
+    cost_fullset = self.compute_cost(X_train, Y_pred_fullset)
+    acc_fullset = self.compute_accuracy(Y_pred_fullset, Y_train)
+    cost_val = self.compute_cost(X_val, Y_pred_val)
+    acc_val = self.compute_accuracy(Y_pred_val, Y_val)
+    self.cost_hist_tr.append(cost_fullset)
+    self.acc_hist_tr.append(acc_fullset)
+    self.cost_hist_val.append(cost_val)
+    self.cost_hist_val.append(acc_val)
+    print("cost train: ", cost_fullset)
+    print("accuracy train: ", acc_fullset)
+
+  def plot_cost(cost_hist_tr, cost_hist_val, acc_hist_tr, acc_hist_val):
+    x = range(1, len(cost_hist_tr) + 1)
+    plt.plot(x, cost_hist_tr, label = "train loss")
+    plt.plot(x,cost_hist_val, label = "val loss")
+    plt.title("Loss over epochs")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.show()
+    plt.plot(x, acc_hist_tr, label = "Train accuracy")
+    plt.plot(x, acc_hist_val, label = "Val accuracy")
+    plt.title("Accuracy over epochs")
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.show()
+
+  
 
   
