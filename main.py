@@ -6,22 +6,18 @@ import matplotlib.pyplot as plt
 
 def main():
   # y = N, // X = dxN // Y=KxN
-  X_train, y_train , Y_train = load_data(batch_file = "data/data_batch_1", num=16)
+  X_train, y_train , Y_train = load_data(batch_file = "data/data_batch_1", num=5)
   print("loaded train data")
   #X_test, y_test, Y_test = load_data(batch_file = "data/test_batch")
   print("loaded test batch")
-  X_val, y_val , Y_val = load_data(batch_file = "data/data_batch_2", num=7)
+  X_val, y_val , Y_val = load_data(batch_file = "data/data_batch_2", num=10)
   print("loaded all data sets")
   ann1 = ANN(X_train, Y_train)
   print("initialized ann")
   ann1.train(X_train, Y_train, X_val, Y_val)
-  print("cost history; ", cost_history)
   print("done training")
 
-
-
-
-def load_data(batch_file = "data/data_batch_1", num=16):
+def load_data(batch_file = "data/data_batch_1", num=16, feat_num=3):
   with open(batch_file, 'rb') as fo:
     data = pickle.load(fo, encoding='bytes')
     X = preprocess(data[b"data"])
@@ -29,7 +25,7 @@ def load_data(batch_file = "data/data_batch_1", num=16):
     Y = one_hot(y)
     print(X.shape)
   if num:
-    return X[:num].T, y[:num], Y[:num].T
+    return X[:num, :feat_num].T, y[:num], Y[:num].T
   else:
     return X, y, Y
 
