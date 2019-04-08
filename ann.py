@@ -14,12 +14,12 @@ class ANN:
     Initialize Neural Network with data and parameters
     """
     var_defaults = {
-        "lr": 0.5, #learning rate
+        "lr": 0.01, #learning rate
         "m_weights": 0, #mean of the weights
-        "sigma_weights": 0.1, #variance of the weights
+        "sigma_weights": 0.01, #variance of the weights
         "labda": 0, # regularization parameter
-        "batch_size":5, # number of examples per minibatch
-        "epochs":20 #number of epochs
+        "batch_size":100, # number of examples per minibatch
+        "epochs":40 #number of epochs
 
     }
 
@@ -56,21 +56,38 @@ class ANN:
     self.cost_hist_val = []
     self.acc_hist_tr = []
     self.acc_hist_val = []
+    
     for i in range(self.epochs):
-      print("----------- epoch ", i, " -----------")
+      av_acc = 0  # Average epoch accuracy
+      av_loss = 0  # Average epoch loss
+      #print("EPOCH ", i)
       num_batches = int(self.n/self.batch_size)
       for j in range(num_batches):
-        #print("training on batch ", j+1, " out of ", num_batches)
+        #print("BATCH ", j)
         j_start = j * self.batch_size
         j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:,j_start:j_end]
         Y_batch = Y_train[:,j_start:j_end]
         Y_pred = self.evaluate(X_batch)
-        grad_w, grad_b = self.compute_gradients(X_batch, Y_pred, Y_batch)
+        #print("Y_pred")
+        #print(Y_pred)
+        grad_w, grad_b = self.compute_gradients(X_batch, Y_batch, Y_pred)
+        #print("grad w ")
+        #print(grad_w)
+        #print("grad b")
+        #print(grad_b)
         self.w = self.w - self.lr*grad_w
         self.b = self.b - self.lr*grad_b
-      self.report_perf(X_train, Y_train, X_val, Y_val)
-    self.plot_cost_and_acc()
+        loss = self.compute_cost(X_batch, Y_pred)
+
+        av_loss += loss
+        accuracy = self.compute_accuracy(Y_pred, Y_batch)
+        av_acc += accuracy
+      average_epoch_loss = av_loss / num_batches
+      average_epoch_acc = av_acc / num_batches
+      print("Epoch: {} - Accuracy: {} Loss: {}".format(i, average_epoch_acc, average_epoch_loss))
+      #self.report_perf(X_train, Y_train, X_val, Y_val)
+    #self.plot_cost_and_acc()
 
   def evaluate(self,test_data):
     """
@@ -97,20 +114,20 @@ class ANN:
     compute the cost based on the current estimations of w and b
     """
     Y_pred = self.evaluate(data)
-    print("Y TRUE")
-    print(Y_true)
-    print("Y PRED")
-    print(Y_pred)
+    #print("Y TRUE")
+    #print(Y_true)
+    #print("Y PRED")
+    #print(Y_pred)
     num_exampl = data.shape[1]
     #rglz = self.labda * (self.w**2).sum()
     # TODO change this
     rglz = 0
     cross_ent = self.cross_entropy(Y_true, Y_pred)
-    print("cross ent: ", cross_ent)
-    print("num examples: ", num_exampl)
+    #print("cross ent: ", cross_ent)
+    #print("num examples: ", num_exampl)
     cost = cross_ent / num_exampl + rglz
-    print("cost: ")
-    print(cost)
+    #print("cost: ")
+    #print(cost)
     return cost
 
   def cross_entropy(self,Y_true, Y_pred):
@@ -118,33 +135,32 @@ class ANN:
     compute the cross entropy. Used for computing the cost.
     """
     mult = Y_true * Y_pred
-    print("multiplication: ")
-    print(mult)
+    #print("multiplication: ")
+    #print(mult)
     vec = np.sum(mult, axis=0)
-    print("vec: ")
-    print(vec)
+    #print("vec: ")
+    #print(vec)
     log = -np.log(vec)
-    print("log: ")
-    print(log)
+    #print("log: ")
+    #print(log)
     cross_ent = np.sum(log, axis=0)
-    print("cross_ent: ")
-    print(cross_ent)
+    #print("cross_ent: ")
+    #print(cross_ent)
     return cross_ent
 
   def compute_accuracy(self,Y_pred, Y_true):
     """
     Compute the accuracy of the y_predictions of the model for a given data set
     """
-    y_pred = np.argmax(Y_pred, axis=0)
-    y_true = np.argmax(Y_true, axis=0)
+    
+    y_pred = np.array(np.argmax(Y_pred, axis=0))
+    y_true = np.array(np.argmax(Y_true, axis=0))
     # and then compare y_pred with y_true
     accuracy = 1
     # here the ys are lowercase so they are the index vectors, 
     # not the one hot encodings 
-    correct = len(np.where(y_pred == y_true)[0])
-    print("y_pred: ", y_pred[:10])
-    print("y_true: ", y_true[:10])
-    accuracy = correct/len(y_true)
+    correct = len(np.where(y_true==y_pred)[0])
+    accuracy = correct/y_true.shape[0]
     return accuracy
 
   def compute_gradients(self, X_batch, y_true_batch, y_pred_batch):
@@ -152,8 +168,9 @@ class ANN:
     compute the gradients of the loss, so the parameters can be updated in the direction of the steepest gradient. 
     """
     grad_batch = self.compute_gradient_batch(y_true_batch, y_pred_batch)
+    b_grad_beforenorm = np.sum(grad_batch, axis=0)
     grad_loss_w = 1/self.batch_size * np.dot(grad_batch, X_batch.T)
-    grad_loss_b = 1/self.batch_size * np.dot(grad_batch, np.ones((self.batch_size,1)))
+    grad_loss_b = 1/self.batch_size * b_grad_beforenorm
     # regularization is added to the weights but not to the bias
     grad_w = grad_loss_w + 2*self.labda*self.w
     grad_b = grad_loss_b
@@ -177,8 +194,8 @@ class ANN:
     self.acc_hist_tr.append(acc_fullset)
     self.cost_hist_val.append(cost_val)
     self.acc_hist_val.append(acc_val)
-    print("cost train: ", cost_fullset)
-    print("accuracy train: ", acc_fullset)
+    #print("cost train: ", cost_fullset)
+    #print("accuracy train: ", acc_fullset)
 
   def plot_cost_and_acc(self):
     x = list(range(1, len(self.cost_hist_tr) + 1))
@@ -196,5 +213,7 @@ class ANN:
     plt.ylabel("Accuracy")
     plt.legend()
     plt.show()
+
+  
 
   
