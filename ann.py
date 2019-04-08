@@ -1,10 +1,14 @@
 """
-This file contains the ANN class, which includes all the machine learning of a selected ANN
-Authors: Clara Tump
+This file contains the ANN class, which implements a
+one-layer neural network trained with stocastich gradient descent.
+
+Author: Clara Tump
+
+NOTE
+We're still setting rglz=0 somewhere in the cost computation
 """
 
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 
 class ANN:
@@ -18,9 +22,8 @@ class ANN:
         "m_weights": 0, #mean of the weights
         "sigma_weights": 0.01, #variance of the weights
         "labda": 0, # regularization parameter
-        "batch_size":100, # number of examples per minibatch
+        "batch_size":100, # #examples per minibatch
         "epochs":40 #number of epochs
-
     }
 
     for var, default in var_defaults.items():
@@ -40,6 +43,7 @@ class ANN:
     w = np.random.normal(self.m_weights, self.sigma_weights, (self.k, self.d))
     return w
 
+
   def init_bias(self):
     """ 
     Initialize bias vector
@@ -47,121 +51,97 @@ class ANN:
     b = np.random.normal(self.m_weights, self.sigma_weights, (self.k,1))
     return b
 
+
   def train(self, X_train, Y_train, X_val, Y_val):
     """
     train using minibatch gradient descent
     """
-    # divide set into mini batches in some random way
     self.cost_hist_tr = []
     self.cost_hist_val = []
     self.acc_hist_tr = []
     self.acc_hist_val = []
-    
+    num_batches = int(self.n/self.batch_size)
+
     for i in range(self.epochs):
-      av_acc = 0  # Average epoch accuracy
-      av_loss = 0  # Average epoch loss
-      #print("EPOCH ", i)
-      num_batches = int(self.n/self.batch_size)
+      cumu_acc = 0
+      cumu_cost = 0  
+      
       for j in range(num_batches):
-        #print("BATCH ", j)
         j_start = j * self.batch_size
         j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:,j_start:j_end]
         Y_batch = Y_train[:,j_start:j_end]
         Y_pred = self.evaluate(X_batch)
-        #print("Y_pred")
-        #print(Y_pred)
         grad_w, grad_b = self.compute_gradients(X_batch, Y_batch, Y_pred)
-        #print("grad w ")
-        #print(grad_w)
-        #print("grad b")
-        #print(grad_b)
         self.w = self.w - self.lr*grad_w
-        self.b = self.b - self.lr*grad_b
-        loss = self.compute_cost(X_batch, Y_pred)
+        print("shape b before updating: ", self.b.shape)
+        self.b = self.b - self.lr*grad_b 
+        print("shape b after updating: ", self.b.shape)
 
-        av_loss += loss
-        accuracy = self.compute_accuracy(Y_pred, Y_batch)
-        av_acc += accuracy
-      average_epoch_loss = av_loss / num_batches
-      average_epoch_acc = av_acc / num_batches
-      print("Epoch: {} - Accuracy: {} Loss: {}".format(i, average_epoch_acc, average_epoch_loss))
-      #self.report_perf(X_train, Y_train, X_val, Y_val)
+        cumu_cost += self.compute_cost(X_batch, Y_pred)
+        cumu_acc += self.compute_accuracy(Y_pred, Y_batch)
+      avg_cost = cumu_cost / num_batches
+      avg_acc = cumu_acc / num_batches
+      print(X_train.shape, Y_train.shape)
+      self.report_perf(i, X_train, Y_train, X_val, Y_val)
     #self.plot_cost_and_acc()
 
-  def evaluate(self,test_data):
+
+  def evaluate(self, X):
     """
-    use the classifier with current weights and bias to make a prediction of the targets (y)
+    use the classifier with current weights and bias to make a 
+    prediction of the one-hot encoded targets (Y)
     test data: dxN
     w: Kxd
     b: Kx1
-    output y_pred = kxN
+    output Y_pred = kxN
     """
-    y_pred = self.softmax(np.dot(self.w, test_data) + self.b)
-    # must be one hot KxN
-    return y_pred
+    print("shape b: ", self.b.shape)
+    Y_pred = self.softmax(np.dot(self.w, X) + self.b)
+    
+    return Y_pred
 
-  def softmax(self, y_pred_lin):
+
+  def softmax(self, Y_pred_lin):
     """
     compute softmax activation, used in evaluating the prediction of the model
     """
-    ones = np.ones(y_pred_lin.shape[0])
-    y_pred = np.exp(y_pred_lin) / np.dot(ones.T, np.exp(y_pred_lin))
-    return y_pred
+    ones = np.ones(Y_pred_lin.shape[0])
+    Y_pred = np.exp(Y_pred_lin) / np.dot(ones.T, np.exp(Y_pred_lin))
+    return Y_pred
 
-  def compute_cost(self,data, Y_true):
+
+  def compute_cost(self, X, Y_true):
     """
     compute the cost based on the current estimations of w and b
     """
-    Y_pred = self.evaluate(data)
-    #print("Y TRUE")
-    #print(Y_true)
-    #print("Y PRED")
-    #print(Y_pred)
-    num_exampl = data.shape[1]
-    #rglz = self.labda * (self.w**2).sum()
-    # TODO change this
+    Y_pred = self.evaluate(X)
+    num_exampl = X.shape[1]
     rglz = 0
     cross_ent = self.cross_entropy(Y_true, Y_pred)
-    #print("cross ent: ", cross_ent)
-    #print("num examples: ", num_exampl)
     cost = cross_ent / num_exampl + rglz
-    #print("cost: ")
-    #print(cost)
     return cost
 
-  def cross_entropy(self,Y_true, Y_pred):
+
+  def cross_entropy(self, Y_true, Y_pred):
     """
     compute the cross entropy. Used for computing the cost.
     """
-    mult = Y_true * Y_pred
-    #print("multiplication: ")
-    #print(mult)
-    vec = np.sum(mult, axis=0)
-    #print("vec: ")
-    #print(vec)
-    log = -np.log(vec)
-    #print("log: ")
-    #print(log)
-    cross_ent = np.sum(log, axis=0)
-    #print("cross_ent: ")
-    #print(cross_ent)
+    vec = np.sum(Y_true * Y_pred, axis=0)
+    cross_ent = np.sum(-np.log(vec), axis=0)
     return cross_ent
+
 
   def compute_accuracy(self,Y_pred, Y_true):
     """
     Compute the accuracy of the y_predictions of the model for a given data set
     """
-    
     y_pred = np.array(np.argmax(Y_pred, axis=0))
     y_true = np.array(np.argmax(Y_true, axis=0))
-    # and then compare y_pred with y_true
-    accuracy = 1
-    # here the ys are lowercase so they are the index vectors, 
-    # not the one hot encodings 
     correct = len(np.where(y_true==y_pred)[0])
     accuracy = correct/y_true.shape[0]
     return accuracy
+
 
   def compute_gradients(self, X_batch, y_true_batch, y_pred_batch):
     """
@@ -176,6 +156,7 @@ class ANN:
     grad_b = grad_loss_b
     return grad_w, grad_b
 
+
   def compute_gradient_batch(self, y_true_batch, y_pred_batch):
     """
     compute the gradient of a batch
@@ -183,21 +164,29 @@ class ANN:
     grad_batch = - (y_true_batch - y_pred_batch)
     return grad_batch
 
-  def report_perf(self, X_train, Y_train, X_val, Y_val):
-    Y_pred_fullset = self.evaluate(X_train)
+
+  def report_perf(self, epoch, X_train, Y_train, X_val, Y_val):
+    """
+    Compute and store the performance (cost and accuracy) of the model after every epoch, 
+    so it can be used later to plot the evolution of the performance
+    """
+    Y_pred_train = self.evaluate(X_train)
     Y_pred_val = self.evaluate(X_val)
-    cost_fullset = self.compute_cost(X_train, Y_pred_fullset)
-    acc_fullset = self.compute_accuracy(Y_pred_fullset, Y_train)
+    cost_train = self.compute_cost(X_train, Y_pred_train)
+    acc_train = self.compute_accuracy(Y_pred_train, Y_train)
     cost_val = self.compute_cost(X_val, Y_pred_val)
     acc_val = self.compute_accuracy(Y_pred_val, Y_val)
-    self.cost_hist_tr.append(cost_fullset)
-    self.acc_hist_tr.append(acc_fullset)
+    self.cost_hist_tr.append(cost_train)
+    self.acc_hist_tr.append(acc_train)
     self.cost_hist_val.append(cost_val)
     self.acc_hist_val.append(acc_val)
-    #print("cost train: ", cost_fullset)
-    #print("accuracy train: ", acc_fullset)
+    print("Epoch ", i, " // Train accuracy: ", acc_train, " // Train cost: ", cost_train)
+
 
   def plot_cost_and_acc(self):
+    """
+    Plot graphs for the evolution of the cost and accuracy through the epochs
+    """
     x = list(range(1, len(self.cost_hist_tr) + 1))
     plt.plot(x, self.cost_hist_tr, label = "train loss")
     plt.plot(x, self.cost_hist_val, label = "val loss")
@@ -213,7 +202,3 @@ class ANN:
     plt.ylabel("Accuracy")
     plt.legend()
     plt.show()
-
-  
-
-  
