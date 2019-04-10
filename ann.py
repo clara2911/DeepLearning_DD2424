@@ -52,7 +52,7 @@ class ANN:
     return b
 
 
-  def train(self, X_train, Y_train, X_val, Y_val):
+  def train(self, X_train, Y_train, X_val, Y_val, verbosity=True):
     """
     train using minibatch gradient descent
     """
@@ -63,9 +63,6 @@ class ANN:
     num_batches = int(self.n/self.batch_size)
 
     for i in range(self.epochs):
-      cumu_acc = 0
-      cumu_cost = 0  
-      
       for j in range(num_batches):
         j_start = j * self.batch_size
         j_end = j*self.batch_size + self.batch_size
@@ -74,17 +71,10 @@ class ANN:
         Y_pred = self.evaluate(X_batch)
         grad_w, grad_b = self.compute_gradients(X_batch, Y_batch, Y_pred)
         self.w = self.w - self.lr*grad_w
-        print("shape b before updating: ", self.b.shape)
-        self.b = self.b - self.lr*grad_b 
-        print("shape b after updating: ", self.b.shape)
-
-        cumu_cost += self.compute_cost(X_batch, Y_pred)
-        cumu_acc += self.compute_accuracy(Y_pred, Y_batch)
-      avg_cost = cumu_cost / num_batches
-      avg_acc = cumu_acc / num_batches
-      print(X_train.shape, Y_train.shape)
-      self.report_perf(i, X_train, Y_train, X_val, Y_val)
-    #self.plot_cost_and_acc()
+        self.b = self.b - self.lr*grad_b
+      if verbosity:
+        self.report_perf(i, X_train, Y_train, X_val, Y_val)
+    self.plot_cost_and_acc()
 
 
   def evaluate(self, X):
@@ -96,7 +86,6 @@ class ANN:
     b: Kx1
     output Y_pred = kxN
     """
-    print("shape b: ", self.b.shape)
     Y_pred = self.softmax(np.dot(self.w, X) + self.b)
     
     return Y_pred
@@ -148,7 +137,7 @@ class ANN:
     compute the gradients of the loss, so the parameters can be updated in the direction of the steepest gradient. 
     """
     grad_batch = self.compute_gradient_batch(y_true_batch, y_pred_batch)
-    b_grad_beforenorm = np.sum(grad_batch, axis=0)
+    b_grad_beforenorm = np.sum(grad_batch, axis=1).reshape(-1,1)
     grad_loss_w = 1/self.batch_size * np.dot(grad_batch, X_batch.T)
     grad_loss_b = 1/self.batch_size * b_grad_beforenorm
     # regularization is added to the weights but not to the bias
@@ -180,7 +169,7 @@ class ANN:
     self.acc_hist_tr.append(acc_train)
     self.cost_hist_val.append(cost_val)
     self.acc_hist_val.append(acc_val)
-    print("Epoch ", i, " // Train accuracy: ", acc_train, " // Train cost: ", cost_train)
+    print("Epoch ", epoch, " // Train accuracy: ", acc_train, " // Train cost: ", cost_train)
 
 
   def plot_cost_and_acc(self):
