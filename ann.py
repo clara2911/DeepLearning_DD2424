@@ -75,6 +75,7 @@ class ANN:
       if verbosity:
         self.report_perf(i, X_train, Y_train, X_val, Y_val)
     self.plot_cost_and_acc()
+    self.show_w()
 
 
   def evaluate(self, X):
@@ -191,3 +192,8 @@ class ANN:
     plt.ylabel("Accuracy")
     plt.legend()
     plt.show()
+
+def show_w(self):
+  plt.imshow(self.w)
+  plt.show()
+
