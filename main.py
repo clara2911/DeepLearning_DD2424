@@ -22,7 +22,7 @@ def main():
   # y = N, // X = dxN // Y=KxN
   X_train, y_train , Y_train = load_data(batch_file = "data/data_batch_1", k=num_classes)
   X_test, y_test, Y_test = load_data(batch_file = "data/test_batch")
-  X_val, y_val , Y_val = load_data(batch_file = "data/data_batch_2", num=3)
+  X_val, y_val , Y_val = load_data(batch_file = "data/data_batch_2")
   ann1 = ANN(X_train, Y_train)
   #X_val, Y_val = X_train, Y_train
   #X_test, Y_test = X_train, Y_train
