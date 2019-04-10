@@ -194,6 +194,13 @@ class ANN:
     plt.show()
 
 def show_w(self):
-  plt.imshow(self.w)
-  plt.show()
+  # w has shape k * d
+  for i in range(self.k):
+    w_image = self.w[i,:].reshape((32,32,3))
+    plt.imshow(w_image)
+    plt.xticks([])
+    plt.yticks([])
+    plt.title("Class ", i)
+    plt.show()
+
 
