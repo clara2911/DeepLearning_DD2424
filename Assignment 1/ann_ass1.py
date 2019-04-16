@@ -19,7 +19,7 @@ class ANN:
         "lr": 0.01, #learning rate
         "m_weights": 0, #mean of the weights
         "sigma_weights": 0.01, #variance of the weights
-        "labda": 0, # regularization parameter
+        "labda": 0.1, # regularization parameter
         "batch_size":100, # #examples per minibatch
         "epochs":40, #number of epochs
         "h_param":1e-6 #parameter h for numerical grad check
@@ -74,6 +74,7 @@ class ANN:
         self.report_perf(i, X_train, Y_train, X_val, Y_val)
     self.plot_cost_and_acc()
     self.show_w()
+
 
   def check_gradients(self, X, Y, method='finite_diff'):
     """
@@ -232,11 +233,13 @@ class ANN:
   def show_w(self):
     # w has shape k * d
     for i in range(self.k):
-      w_image = self.w[i,:].reshape((32,32,3))
+      w_image = self.w[i,:].reshape((32,32,3), order='F')
+      w_image = ((w_image - w_image.min()) / (w_image.max() - w_image.min()))
+      w_image = np.rot90(w_image, 3)
       plt.imshow(w_image)
       plt.xticks([])
       plt.yticks([])
-      plt.title("Class ", i)
+      plt.title("Class " + str(i))
       plt.show()
 
   def compute_gradient_num_fast(self, X, Y_true):

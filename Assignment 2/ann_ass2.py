@@ -295,9 +295,8 @@ class ANN:
     # w has shape k * d
     for i in range(self.k):
       w_image = self.w1[i, :].reshape((32, 32, 3), order='F')
-
       w_image = ((w_image - w_image.min()) / (w_image.max() - w_image.min()))
-      np.rot90(w_image, 1)
+      w_image = np.rot90(w_image, 3)
       plt.imshow(w_image)
       plt.xticks([])
       plt.yticks([])
