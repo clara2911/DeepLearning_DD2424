@@ -24,16 +24,15 @@ def main():
   X_train, y_train , Y_train = load_data(batch_file = "data/data_batch_2", k=num_classes)
   X_test, y_test, Y_test = load_data(batch_file = "data/test_batch")
   X_val, y_val , Y_val = load_data(batch_file = "data/data_batch_1")
-  ann1 = ANN(X_train, Y_train)
-  #X_val, Y_val = X_train, Y_train
-  #X_test, Y_test = X_train, Y_train
-  ann1.train(X_train, Y_train, X_val, Y_val, verbosity= True)
-  Y_pred_test = ann1.evaluate(X_test)
-  test_acc = ann1.compute_accuracy(Y_pred_test, Y_test)
-  print("------------------------------------------------------")
-  print("               FINAL TEST ACCURACY")
-  print(test_acc)
-  print("------------------------------------------------------")
+  ann1 = ANN(X_train[:8, :100], Y_train[:, :100])
+  ann1.check_gradients(X_train[:8, :100], Y_train[:, :100], method='centered_diff')
+  # ann1.train(X_train, Y_train, X_val, Y_val, verbosity= True)
+  # Y_pred_test = ann1.evaluate(X_test)
+  # test_acc = ann1.compute_accuracy(Y_pred_test, Y_test)
+  # print("------------------------------------------------------")
+  # print("               FINAL TEST ACCURACY")
+  # print(test_acc)
+  # print("------------------------------------------------------")
 
 
 def load_data(batch_file = "data/data_batch_1", num=None, feat_num=None, k=10):

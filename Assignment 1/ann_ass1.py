@@ -83,6 +83,7 @@ class ANN:
     b) by the slower but more accurate centered difference method
     The analytical (self computed) and numerical gradients of b and w are plotted for comparison
     """
+    # initialize here so that it's initialized even if it doesnt satisfy the if or elif conditions
     grad_w_num = np.zeros((self.k, self.d))
     Y_pred = self.evaluate(X)
     grad_b, grad_w = self.compute_gradients(X, Y, Y_pred)
