@@ -23,8 +23,8 @@ class ANN:
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
         "labda": 0,  # regularization parameter
         "batch_size": 100,  # #examples per minibatch
-        "epochs": 1,  #number of epochs
-        "h_size": 5,  # number of nodes in the hidden layer
+        "epochs": 40,  #number of epochs
+        "h_size": 50,  # number of nodes in the hidden layer
         "h_param": 1e-6  # parameter h for numerical grad check
     }
 
