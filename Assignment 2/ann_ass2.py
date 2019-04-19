@@ -18,14 +18,17 @@ class ANN:
     Initialize Neural Network with data and parameters
     """
     var_defaults = {
-        "lr": 0.1,  #learning rate
+        "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
         "labda": 0,  # regularization parameter
         "batch_size": 100,  # #examples per minibatch
         "epochs": 40,  #number of epochs
         "h_size": 50,  # number of nodes in the hidden layer
-        "h_param": 1e-6  # parameter h for numerical grad check
+        "h_param": 1e-6,  # parameter h for numerical grad check
+        "ns": 500, # step size for cyclical learning rate
+        "lr_max": 1e-1, # maximum for cyclical learning rate
+        "lr_min": 1e-5 # minimum for cyclical learning rate
     }
 
     for var, default in var_defaults.items():
@@ -74,7 +77,6 @@ class ANN:
     self.acc_hist_tr = []
     self.acc_hist_val = []
     num_batches = int(self.n/self.batch_size)
-
     for i in range(self.epochs):
       for j in range(num_batches):
         j_start = j * self.batch_size
@@ -87,6 +89,7 @@ class ANN:
         self.b1 = self.b1 - self.lr*grad_b1
         self.w2 = self.w2 - self.lr * grad_w2
         self.b2 = self.b2 - self.lr * grad_b2
+        self.lr = self.cyclic_lr(i*num_batches + j)
       if verbosity:
         self.report_perf(i, X_train, Y_train, X_val, Y_val)
     self.plot_cost_and_acc()
@@ -251,6 +254,18 @@ class ANN:
     """
     grad_batch = - (y_true_batch - y_pred_batch)
     return grad_batch
+
+  def cyclic_lr(self, t):
+    """
+    Update learning rate according to a cyclic learning rate scheme
+    Learning rate increases linearly from 2*l*ns till (2*l+1)*ns and then decreases linearly again until 2*(l+1)*ns
+    """
+    l = int(t/(2*self.ns))
+    if t < (2*l + 1)*self.ns:
+      lr_t = self.lr_min + (t - 2*l*self.ns)/self.ns*(self.lr_max - self.lr_min)
+    else:
+      lr_t = self.lr_max - (t- (2*l+1)*self.ns)/self.ns*(self.lr_max - self.lr_min)
+    return lr_t
 
 
   def report_perf(self, epoch, X_train, Y_train, X_val, Y_val):
