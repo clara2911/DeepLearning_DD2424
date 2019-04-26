@@ -1,11 +1,9 @@
 """
 This file contains the ANN class, which implements a
-one-layer neural network trained with stocastich gradient descent.
+one-layer neural network trained with stochastic gradient descent.
 
 Author: Clara Tump
 
-NOTE
-We're still setting rglz=0 somewhere in the cost computation
 """
 
 import numpy as np
@@ -21,12 +19,12 @@ class ANN:
         "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
-        "labda": 0,  # regularization parameter
+        "labda": 0.01,  # regularization parameter
         "batch_size": 100,  # #examples per minibatch
-        "epochs": 40,  #number of epochs
+        "epochs": 48,  #number of epochs
         "h_size": 50,  # number of nodes in the hidden layer
         "h_param": 1e-6,  # parameter h for numerical grad check
-        "ns": 500, # step size for cyclical learning rate
+        "ns": 800, # step size for cyclical learning rate
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5 # minimum for cyclical learning rate
     }
@@ -90,10 +88,9 @@ class ANN:
         self.w2 = self.w2 - self.lr * grad_w2
         self.b2 = self.b2 - self.lr * grad_b2
         self.lr = self.cyclic_lr(i*num_batches + j)
-      if verbosity:
-        self.report_perf(i, X_train, Y_train, X_val, Y_val)
+      self.report_perf(i, X_train, Y_train, X_val, Y_val, verbosity)
     self.plot_cost_and_acc()
-    self.show_w()
+    #self.show_w()
 
   def check_gradients(self, X, Y, method='finite_diff'):
     """
@@ -220,29 +217,16 @@ class ANN:
     grad_w2 = 1/self.batch_size * np.dot(grad_batch, h_act.T)
     grad_b2 = 1/self.batch_size * np.sum(grad_batch, axis=1).reshape(-1, 1)
     grad_batch = np.dot(self.w2.T, grad_batch)
-    # print("grad_batch shape before: ", grad_batch.shape)
 
     h_act_ind = np.zeros(h_act.shape)
     for i in range(h_act.shape[0]):
       for j in range(h_act.shape[1]):
         if h_act[i,j] > 0:
           h_act_ind[i, j] = 1
-
-    # print("h_act diag: ", h_act_ind.shape)
     grad_batch = grad_batch * h_act_ind
-    # print("grad_batch after dot with diag: ", grad_batch.shape)
-
-    # layer 1
-    # print("and after we want to do tthese: ")
-    # print("grad_batch: ", grad_batch.shape)
-    # print("X_batch.T: ", X_batch.T.shape)
-
     grad_w1 = 1 / self.batch_size * np.dot(grad_batch, X_batch.T)
     grad_b1 = 1 / self.batch_size * np.sum(grad_batch, axis=1).reshape(-1, 1)
-    # print("after all dots")
 
-    # regularization is added to the weights but not to the bias
-    # print("now we want to add these")
     grad_w1 = grad_w1 + 2 * self.labda * self.w1
     grad_w2 = grad_w2 + 2 * self.labda * self.w2
     return grad_b1, grad_b2, grad_w1, grad_w2
@@ -268,7 +252,7 @@ class ANN:
     return lr_t
 
 
-  def report_perf(self, epoch, X_train, Y_train, X_val, Y_val):
+  def report_perf(self, epoch, X_train, Y_train, X_val, Y_val, verbosity):
     """
     Compute and store the performance (cost and accuracy) of the model after every epoch, 
     so it can be used later to plot the evolution of the performance
@@ -283,7 +267,8 @@ class ANN:
     self.acc_hist_tr.append(acc_train)
     self.cost_hist_val.append(cost_val)
     self.acc_hist_val.append(acc_val)
-    print("Epoch ", epoch, " // Train accuracy: ", acc_train, " // Train cost: ", cost_train)
+    if verbosity:
+      print("Epoch ", epoch, " // Train accuracy: ", acc_train, " // Train cost: ", cost_train)
 
 
   def plot_cost_and_acc(self):
@@ -296,15 +281,19 @@ class ANN:
     plt.title("Loss over epochs")
     plt.xlabel("Epochs")
     plt.ylabel("Loss")
+    plt.ylim(0, 3)
     plt.legend()
-    plt.show()
+    #plt.show()
+    plt.savefig("results/loss_labda="+str(self.labda)+".png")
     plt.plot(x, self.acc_hist_tr, label = "Train accuracy")
     plt.plot(x, self.acc_hist_val, label = "Val accuracy")
     plt.title("Accuracy over epochs")
     plt.xlabel("Epochs")
     plt.ylabel("Accuracy")
+    plt.ylim(0,0.8)
     plt.legend()
-    plt.show()
+    plt.savefig("results/acc_labda=" + str(self.labda)+".png")
+    #plt.show()
 
   def show_w(self):
     # w has shape k * d
