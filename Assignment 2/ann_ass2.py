@@ -19,12 +19,11 @@ class ANN:
         "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
-        "labda": 0.01,  # regularization parameter
+        "labda": 8*1e-4,  # regularization parameter
         "batch_size": 100,  # #examples per minibatch
-        "epochs": 48,  #number of epochs
+        "epochs": 14,  #number of epochs
         "h_size": 50,  # number of nodes in the hidden layer
         "h_param": 1e-6,  # parameter h for numerical grad check
-        "ns": 800, # step size for cyclical learning rate
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5 # minimum for cyclical learning rate
     }
@@ -38,6 +37,8 @@ class ANN:
     self.m = self.h_size
     self.w1, self.w2 = self.init_weight_mats()
     self.b1, self.b2 = self.init_biases()
+    self.ns = 2*int(self.n/self.batch_size)
+    print("ns: ", self.ns)
 
 
   def init_weight_mats(self):
@@ -283,7 +284,7 @@ class ANN:
     plt.ylabel("Loss")
     plt.ylim(0, 3)
     plt.legend()
-    #plt.show()
+    plt.show()
     plt.savefig("results/loss_labda="+str(self.labda)+".png")
     plt.plot(x, self.acc_hist_tr, label = "Train accuracy")
     plt.plot(x, self.acc_hist_val, label = "Val accuracy")
@@ -293,7 +294,7 @@ class ANN:
     plt.ylim(0,0.8)
     plt.legend()
     plt.savefig("results/acc_labda=" + str(self.labda)+".png")
-    #plt.show()
+    plt.show()
 
   def show_w(self):
     # w has shape k * d

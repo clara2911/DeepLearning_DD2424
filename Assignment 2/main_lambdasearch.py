@@ -24,22 +24,34 @@ def main():
   X_test, y_test, Y_test = load_data(batch_file = "data/test_batch")
   # try 10 values kind of range 10e-5 to 10e-1
   labdas_course = [2*1e-8, 4*1e-8, 6*1e-8, 8*1e-8, 1e-7, 2*1e-7, 4*1e-7, 6*1e-7, 8*1e-7, 2*1e-4, 4*1e-4, 6*1e-4, 8*1e-4, 1e-3, 2*1e-3, 4*1e-3, 6*1e-3, 8*1e-3]
-  for labda in labdas_course:
-    params = {
-      "labda": labda,
-      "epochs": 32,#32 # two cycles
-    }
-    ann1 = ANN(X_train, Y_train, **params)
-    ann1.train(X_train, Y_train, X_val, Y_val, verbosity= False)
-    Y_pred_val, act_h_test = ann1.evaluate(X_val)
-    val_acc = ann1.compute_accuracy(Y_pred_val, Y_val)
-    with open('results/lambda_fine_search.txt', 'a') as course_search_results:
-      course_search_results.write("\n Lambda: "+str(labda))
-      course_search_results.write("\n Validation accuracy: "+str(val_acc))
-      course_search_results.write("\n --------------------------------")
-    print(" Lambda: ", labda)
-    print(" Validation accuracy: ", val_acc)
-    print("-------------------------------------------------------------------------------------------------------")
+  labda_final = 0.0008
+  # for labda in labdas_course:
+  #   params = {
+  #     "labda": labda,
+  #     "epochs": 32,#32 # two cycles
+  #   }
+  #   ann1 = ANN(X_train, Y_train, **params)
+  #   ann1.train(X_train, Y_train, X_val, Y_val, verbosity= False)
+    # Y_pred_val, act_h_test = ann1.evaluate(X_val)
+    # val_acc = ann1.compute_accuracy(Y_pred_val, Y_val)
+    # with open('results/lambda_fine_search.txt', 'a') as course_search_results:
+    #   course_search_results.write("\n Lambda: "+str(labda))
+    #   course_search_results.write("\n Validation accuracy: "+str(val_acc))
+    #   course_search_results.write("\n --------------------------------")
+    # print(" Lambda: ", labda)
+    # print(" Validation accuracy: ", val_acc)
+    # print("-------------------------------------------------------------------------------------------------------")
+
+  params = {
+    "labda": labda_final,
+    "epochs": 14,  # 32 # two cycles
+  }
+  ann1 = ANN(X_train, Y_train, **params)
+  ann1.train(X_train, Y_train, X_val, Y_val, verbosity=False)
+  Y_pred_test, _ = ann1.evaluate(X_test)
+  test_acc = ann1.compute_accuracy(Y_pred_test, Y_test)
+  print("-------------------------------------------------------------------------------------------------------")
+  print("Final test accuracy: ", test_acc, " with lambda = ", labda_final)
 
 def get_train_val_data():
   X1, y1, Y1 = load_data(batch_file="data/data_batch_1", k=num_classes)
