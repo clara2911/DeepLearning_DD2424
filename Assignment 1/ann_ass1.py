@@ -103,6 +103,11 @@ class ANN:
     plt.legend()
     plt.title(("Gradient check of w, batch size = " + str(X.shape[1])))
     plt.show()
+    rel_error = abs(grad_w_vec / grad_w_num_vec - 1)
+    print("METHOD = ", method)
+    print("--- W gradients ---")
+    print("mean relative error: ", np.mean(rel_error))
+
 
     grad_b_vec = grad_b.flatten()
     grad_b_num_vec = grad_b_num.flatten()
@@ -112,6 +117,9 @@ class ANN:
     plt.legend()
     plt.title(("Gradient check of b, batch size = " + str(X.shape[1])))
     plt.show()
+    rel_error = abs(grad_b_vec / grad_b_num_vec - 1)
+    print("--- Bias gradients ---")
+    print("mean relative error: ", np.mean(rel_error))
 
 
 
