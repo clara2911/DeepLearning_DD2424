@@ -1,0 +1,31 @@
+
+ Lambda: 1e-08
+ Validation accuracy: 0.502
+ --------------------------------
+ Lambda: 1e-07
+ Validation accuracy: 0.52
+ --------------------------------
+ Lambda: 1e-06
+ Validation accuracy: 0.514
+ --------------------------------
+ Lambda: 1e-05
+ Validation accuracy: 0.488
+ --------------------------------
+ Lambda: 0.0001
+ Validation accuracy: 0.498
+ --------------------------------
+ Lambda: 0.001
+ Validation accuracy: 0.526
+ --------------------------------
+ Lambda: 0.01
+ Validation accuracy: 0.496
+ --------------------------------
+ Lambda: 0.1
+ Validation accuracy: 0.37
+ --------------------------------
+ Lambda: 1
+ Validation accuracy: 0.19
+ --------------------------------
+ Lambda: 10
+ Validation accuracy: 0.084
+ --------------------------------

@@ -1,0 +1,55 @@
+
+ Lambda: 2e-08
+ Validation accuracy: 0.504
+ --------------------------------
+ Lambda: 4e-08
+ Validation accuracy: 0.526
+ --------------------------------
+ Lambda: 6.000000000000001e-08
+ Validation accuracy: 0.508
+ --------------------------------
+ Lambda: 8e-08
+ Validation accuracy: 0.514
+ --------------------------------
+ Lambda: 1e-07
+ Validation accuracy: 0.506
+ --------------------------------
+ Lambda: 2e-07
+ Validation accuracy: 0.474
+ --------------------------------
+ Lambda: 4e-07
+ Validation accuracy: 0.484
+ --------------------------------
+ Lambda: 6e-07
+ Validation accuracy: 0.506
+ --------------------------------
+ Lambda: 8e-07
+ Validation accuracy: 0.498
+ --------------------------------
+ Lambda: 0.0002
+ Validation accuracy: 0.524
+ --------------------------------
+ Lambda: 0.0004
+ Validation accuracy: 0.512
+ --------------------------------
+ Lambda: 0.0006000000000000001
+ Validation accuracy: 0.536
+ --------------------------------
+ Lambda: 0.0008
+ Validation accuracy: 0.534
+ --------------------------------
+ Lambda: 0.001
+ Validation accuracy: 0.534
+ --------------------------------
+ Lambda: 0.002
+ Validation accuracy: 0.496
+ --------------------------------
+ Lambda: 0.004
+ Validation accuracy: 0.524
+ --------------------------------
+ Lambda: 0.006
+ Validation accuracy: 0.524
+ --------------------------------
+ Lambda: 0.008
+ Validation accuracy: 0.506
+ --------------------------------
