@@ -19,14 +19,13 @@ class ANN:
         "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
-        "labda": 8*1e-4,  # regularization parameter
-        "batch_size": 100,  # #examples per minibatch
-        "epochs": 14,  #number of epochs
-        "h_size": 50,  # number of nodes in the hidden layer
+        "labda": 0, #8*1e-4,  # regularization parameter
+        "batch_size": 100, # examples per minibatch
+        "epochs": 2,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[20,20,50,10]
+        "h_sizes":[5,5]
     }
 
     for var, default in var_defaults.items():
@@ -35,13 +34,10 @@ class ANN:
     self.d = data.shape[0]
     self.n = data.shape[1]
     self.k = targets.shape[0]
-    # self.m = self.hsize
     self.m = self.h_sizes
     self.num_hlayers = len(self.h_sizes)
     self.w = self.init_weight_mats()
-    print("w.shape: ", len(self.w), self.w[0].shape)
     self.b = self.init_biases()
-    print("b.shape: ", len(self.b), self.b[0].shape)
     self.ns = 2*int(self.n/self.batch_size)
 
 
@@ -94,11 +90,11 @@ class ANN:
         j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:, j_start:j_end]
         Y_batch = Y_train[:, j_start:j_end]
-        Y_pred, act_h= self.evaluate(X_batch)
+        Y_pred, act_h = self.evaluate(X_batch)
         grad_b, grad_w = self.compute_gradients(X_batch, Y_batch, Y_pred, act_h)
-        for i in range(self.num_hlayers+1):
-          self.w1 = self.w[i] - self.lr*grad_w[i]
-          self.b1 = self.b[i] - self.lr*grad_b[i]
+        for k in range(self.num_hlayers+1):
+          self.w[k] = self.w[k] - self.lr*grad_w[k]
+          self.b[k] = self.b[k] - self.lr*grad_b[k]
         self.lr = self.cyclic_lr(i*num_batches + j)
       self.report_perf(i, X_train, Y_train, X_val, Y_val, verbosity)
     self.plot_cost_and_acc()
@@ -168,10 +164,18 @@ class ANN:
     b: Kx1
     output Y_pred = kxN
     """
-    s1 = np.dot(self.w1, X) + self.b1
-    act_h = np.maximum(0, s1)
-    s2 = np.dot(self.w2, act_h) + self.b2
-    Y_pred = self.softmax(s2)
+    act_h = [None] * (self.num_hlayers + 1)
+    # first layer
+    before_relu = np.dot(self.w[0], X) + self.b[0]
+    act_h[0] = np.maximum(0, before_relu)
+
+    # second until last layer
+    for i in range(1,self.num_hlayers+1):
+      before_relu = np.dot(self.w[i], act_h[i-1]) + self.b[i]
+      act_h[i] = np.maximum(0, before_relu)
+
+    before_relu = np.dot(self.w[self.num_hlayers], act_h[self.num_hlayers-1]) + self.b[self.num_hlayers]
+    Y_pred = self.softmax(before_relu)
     return Y_pred, act_h
 
   def softmax(self, Y_pred_lin):
@@ -189,7 +193,11 @@ class ANN:
     """
     Y_pred, act_h = self.evaluate(X)
     num_exampl = X.shape[1]
-    rglz = self.labda * np.sum(self.w1**2) +  self.labda * np.sum(self.w2**2)
+
+    rglz = 0
+    for i in range(self.num_hlayers + 1):
+      rglz += self.labda * np.sum(self.w[i]**2)
+
     cross_ent = self.cross_entropy(Y_true, Y_pred)
     cost = cross_ent / num_exampl + rglz
     return cost
@@ -215,32 +223,41 @@ class ANN:
     return accuracy
 
 
-  def compute_gradients(self, X_batch, y_true_batch, y_pred_batch, h_act):
+  def compute_gradients(self, X_batch, y_true_batch, y_pred_batch, act_h):
     """
     compute the gradients of the loss, so the parameters can be updated in the direction of the steepest gradient. 
     """
-
-    # TODO make it for k layers instead of 2
-
+    # gradient of batch
     grad_batch = self.compute_gradient_batch(y_true_batch, y_pred_batch)
 
-    # layer 2
-    grad_w2 = 1/self.batch_size * np.dot(grad_batch, h_act.T)
-    grad_b2 = 1/self.batch_size * np.sum(grad_batch, axis=1).reshape(-1, 1)
-    grad_batch = np.dot(self.w2.T, grad_batch)
+    grad_b = [None]*(self.num_hlayers+1)
+    grad_w = [None]*(self.num_hlayers+1)
+    # layer last (num_hlayers+1) until second (1), looping backwards
 
-    h_act_ind = np.zeros(h_act.shape)
-    for i in range(h_act.shape[0]):
-      for j in range(h_act.shape[1]):
-        if h_act[i,j] > 0:
-          h_act_ind[i, j] = 1
-    grad_batch = grad_batch * h_act_ind
-    grad_w1 = 1 / self.batch_size * np.dot(grad_batch, X_batch.T)
-    grad_b1 = 1 / self.batch_size * np.sum(grad_batch, axis=1).reshape(-1, 1)
+    for i in range(self.num_hlayers,0,-1):
+      # compute gradients for these layers
+      grad_w[i] = (1/ self.batch_size) * np.dot(grad_batch, act_h[i-1].T)
+      grad_b[i] = (1/ self.batch_size) * np.sum(grad_batch, axis=1).reshape(-1, 1)
 
-    grad_w1 = grad_w1 + 2 * self.labda * self.w1
-    grad_w2 = grad_w2 + 2 * self.labda * self.w2
-    return grad_b1, grad_b2, grad_w1, grad_w2
+      # propagate gradient backwards
+      grad_batch = np.dot(self.w[i].T, grad_batch)
+      # layers_input is the input to layer i (which is the activation of the previous layer)
+      layers_input = act_h[i-1]
+      h_act_ind = np.zeros(layers_input.shape)
+      for k in range(layers_input.shape[0]):
+        for j in range(layers_input.shape[1]):
+          if layers_input[k,j] > 0:
+            h_act_ind[k, j] = 1
+      grad_batch = grad_batch * h_act_ind
+
+    # first layer
+    grad_w[0] = 1 / self.batch_size * np.dot(grad_batch, X_batch.T)
+    grad_b[0] = 1 / self.batch_size * np.sum(grad_batch, axis=1).reshape(-1, 1)
+
+    # regularization
+    for i in range(self.num_hlayers + 1):
+      grad_w[i] = grad_w[i] + 2 * self.labda * self.w[i]
+    return grad_b, grad_w
 
 
   def compute_gradient_batch(self, y_true_batch, y_pred_batch):

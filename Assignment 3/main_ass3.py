@@ -27,7 +27,7 @@ def main():
   ann1 = ANN(X_train, Y_train)
   # uncomment this line to check gradients. remember to init ANN with same no. data points / feats
   #ann1.check_gradients(X_train[:8, :100], Y_train[:, :100], method='centered_diff')
-  # ann1.train(X_train, Y_train, X_val, Y_val, verbosity= True)
+  ann1.train(X_train, Y_train, X_val, Y_val, verbosity= True)
   # Y_pred_test, act_h_test = ann1.evaluate(X_test)
   # test_acc = ann1.compute_accuracy(Y_pred_test, Y_test)
   # print("------------------------------------------------------")
