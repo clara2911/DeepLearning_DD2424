@@ -19,13 +19,13 @@ class ANN:
         "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
-        "labda": 0, #8*1e-4,  # regularization parameter
-        "batch_size": 100, # examples per minibatch
-        "epochs": 2,  #number of epochs
+        "labda": 8*1e-1, #0, #8*1e-4,  # regularization parameter
+        "batch_size": 20, # examples per minibatch
+        "epochs": 10,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[5,5]
+        "h_sizes":[4,5]
     }
 
     for var, default in var_defaults.items():
@@ -110,49 +110,32 @@ class ANN:
     """
     grad_w_num = np.zeros((self.k, self.d))
     Y_pred, h_act = self.evaluate(X)
-    grad_b1, grad_b2, grad_w1, grad_w2 = self.compute_gradients(X, Y, Y_pred, h_act)
+    grad_b, grad_w  = self.compute_gradients(X, Y, Y_pred, h_act)
     if method == 'finite_diff':
-      grad_b1_num, grad_b2_num, grad_w1_num, grad_w2_num = self.compute_gradient_num_fast(X, Y)
+      grad_b_num, grad_w_num = self.compute_gradient_num_fast(X, Y)
     elif method == 'centered_diff':
-      grad_b1_num, grad_b2_num, grad_w1_num, grad_w2_num = self.compute_gradient_num_slow(X, Y)
+      grad_b_num, grad_w_num= self.compute_gradient_num_slow(X, Y)
     else:
       print(method, " IS NOT A VALID NUMERICAL GRADIENT CHECKING.")
 
-    grad_w1_vec = grad_w1.flatten()
-    grad_w1_num_vec = grad_w1_num.flatten()
-    x_w1 = np.arange(1, grad_w1_vec.shape[0] + 1)
-    plt.bar(x_w1, grad_w1_vec, 0.35, label='Analytical gradient', color='blue')
-    plt.bar(x_w1+0.35, grad_w1_num_vec, 0.35, label=method, color='red')
-    plt.legend()
-    plt.title(("Gradient check of w1, batch size = " + str(X.shape[1])))
-    plt.show()
+    for k in range(self.num_hlayers + 1):
+        grad_w_vec = grad_w[k].flatten()
+        grad_w_num_vec = grad_w_num[k].flatten()
+        x_w = np.arange(1, grad_w_vec.shape[0] + 1)
+        plt.bar(x_w, grad_w_vec, 0.35, label='Analytical gradient', color='blue')
+        plt.bar(x_w+0.35, grad_w_num_vec, 0.35, label=method, color='red')
+        plt.legend()
+        plt.title(("Gradient check of w", k, ", batch size = " + str(X.shape[1])))
+        plt.show()
 
-    grad_w2_vec = grad_w2.flatten()
-    grad_w2_num_vec = grad_w2_num.flatten()
-    x_w2 = np.arange(1, grad_w2_vec.shape[0] + 1)
-    plt.bar(x_w2, grad_w2_vec, 0.35, label='Analytical gradient', color='blue')
-    plt.bar(x_w2 + 0.35, grad_w2_num_vec, 0.35, label=method, color='red')
-    plt.legend()
-    plt.title(("Gradient check of w2, batch size = " + str(X.shape[1])))
-    plt.show()
-
-    grad_b1_vec = grad_b1.flatten()
-    grad_b1_num_vec = grad_b1_num.flatten()
-    x_b1 = np.arange(1, grad_b1.shape[0] + 1)
-    plt.bar(x_b1, grad_b1_vec, 0.35, label='Analytical gradient', color='blue')
-    plt.bar(x_b1 + 0.35, grad_b1_num_vec, 0.35, label=method, color='red')
-    plt.legend()
-    plt.title(("Gradient check of b1, batch size = " + str(X.shape[1])))
-    plt.show()
-
-    grad_b2_vec = grad_b2.flatten()
-    grad_b2_num_vec = grad_b2_num.flatten()
-    x_b2 = np.arange(1, grad_b2.shape[0] + 1)
-    plt.bar(x_b2, grad_b2_vec, 0.35, label='Analytical gradient', color='blue')
-    plt.bar(x_b2 + 0.35, grad_b2_num_vec, 0.35, label=method, color='red')
-    plt.legend()
-    plt.title(("Gradient check of b2, batch size = " + str(X.shape[1])))
-    plt.show()
+        grad_b_vec = grad_b[k].flatten()
+        grad_b_num_vec = grad_b_num[k].flatten()
+        x_b = np.arange(1, grad_b[k].shape[0] + 1)
+        plt.bar(x_b, grad_b_vec, 0.35, label='Analytical gradient', color='blue')
+        plt.bar(x_b + 0.35, grad_b_num_vec, 0.35, label=method, color='red')
+        plt.legend()
+        plt.title(("Gradient check of b", k, ", batch size = " + str(X.shape[1])))
+        plt.show()
 
 
   def evaluate(self, X):
@@ -341,39 +324,35 @@ class ANN:
     Gradient computed numerically based on the finite difference method
     :param h_param: a parameter needed to be set for the finite difference method, usually around 1e-6
     """
-    grad_b1 = np.zeros((self.m, 1))
-    grad_b2 = np.zeros((self.k, 1))
-    grad_w1 = np.zeros((self.m, self.d))
-    grad_w2 = np.zeros((self.k, self.m))
+    grad_w = [None]*(self.num_hlayers+1)
+    grad_b = [None]*(self.num_hlayers+1)
+
+    for k in range(self.num_hlayers):
+        grad_b[k] = np.zeros((self.m[k], 1))
+    grad_b[self.num_hlayers] = np.zeros((self.k, 1))
+
+    grad_w[0] = np.zeros((self.m[0], self.d))
+    for k in range(self.num_hlayers-1):
+        grad_w[k] = np.zeros((self.m[k+1], self.m[k]))
+    grad_w[self.num_hlayers] = np.zeros((self.k, self.m[self.num_hlayers]))
 
     c = self.compute_cost(X, Y_true)
 
-    for i in range(self.b1.shape[0]):
-      self.b1[i] += self.h_param
-      c2 = self.compute_cost(X, Y_true)
-      grad_b1[i] = (c2-c) / self.h_param
-      self.b1[i] -= self.h_param
+    for k in range(self.num_hlayers+1):
+        for i in range(self.b[k].shape[0]):
+          self.b[k][i] += self.h_param
+          c2 = self.compute_cost(X, Y_true)
+          grad_b[k][i] = (c2-c) / self.h_param
+          self.b[k][i] -= self.h_param
 
-    for i in range(self.b2.shape[0]):
-      self.b2[i] += self.h_param
-      c2 = self.compute_cost(X, Y_true)
-      grad_b2[i] = (c2-c) / self.h_param
-      self.b2[i] -= self.h_param
+        for i in range(self.w[k].shape[0]): #k
+          for j in range(self.w[k].shape[1]): #d
+            self.w[k][i,j] += self.h_param
+            c2 = self.compute_cost(X, Y_true)
+            grad_w[k][i,j] = (c2-c) / self.h_param
+            self.w[k][i,j] -= self.h_param
 
-    for i in range(self.w1.shape[0]): #k
-      for j in range(self.w1.shape[1]): #d
-        self.w1[i,j] += self.h_param
-        c2 = self.compute_cost(X, Y_true)
-        grad_w1[i,j] = (c2-c) / self.h_param
-        self.w1[i,j] -= self.h_param
-
-    for i in range(self.w2.shape[0]): #k
-      for j in range(self.w2.shape[1]): #d
-        self.w2[i,j] += self.h_param
-        c2 = self.compute_cost(X, Y_true)
-        grad_w2[i,j] = (c2-c) / self.h_param
-        self.w2[i,j] -= self.h_param
-    return grad_b1, grad_b2, grad_w1, grad_w2
+    return grad_b, grad_w
 
   def compute_gradient_num_slow(self, X, Y_true):
     """
@@ -381,42 +360,33 @@ class ANN:
     Gradient computed numerically based on the centered difference method
     :param h_param: a parameter needed to be set for the centered difference method, usually around 1e-6
     """
-    grad_b1 = np.zeros((self.m, 1))
-    grad_b2 = np.zeros((self.k, 1))
-    grad_w1 = np.zeros((self.m, self.d))
-    grad_w2 = np.zeros((self.k, self.m))
+    grad_w = [None] * (self.num_hlayers + 1)
+    grad_b = [None] * (self.num_hlayers + 1)
 
-    for i in range(self.b1.shape[0]):
-      self.b1[i] -= self.h_param
-      c1 = self.compute_cost(X, Y_true)
-      self.b1[i] += 2*self.h_param
-      c2 = self.compute_cost(X, Y_true)
-      grad_b1[i] = (c2 - c1) / (2*self.h_param)
-      self.b1[i] -= self.h_param
+    for k in range(self.num_hlayers):
+        grad_b[k] = np.zeros((self.m[k], 1))
+    grad_b[self.num_hlayers] = np.zeros((self.k, 1))
 
-    for i in range(self.b2.shape[0]):
-      self.b2[i] -= self.h_param
-      c1 = self.compute_cost(X, Y_true)
-      self.b2[i] += 2*self.h_param
-      c2 = self.compute_cost(X, Y_true)
-      grad_b2[i] = (c2 - c1) / (2*self.h_param)
-      self.b2[i] -= self.h_param
+    grad_w[0] = np.zeros((self.m[0], self.d))
+    for k in range(1,self.num_hlayers):
+        grad_w[k] = np.zeros((self.m[k], self.m[k-1]))
+    grad_w[self.num_hlayers] = np.zeros((self.k, self.m[self.num_hlayers-1]))
 
-    for i in range(self.w1.shape[0]):  # k
-      for j in range(self.w1.shape[1]):  # d
-        self.w1[i, j] -= self.h_param
-        c1 = self.compute_cost(X, Y_true)
-        self.w1[i, j] += 2*self.h_param
-        c2 = self.compute_cost(X, Y_true)
-        grad_w1[i, j] = (c2 - c1) / (2*self.h_param)
-        self.w1[i, j] -= self.h_param
+    for k in range(self.num_hlayers+1):
+        for i in range(self.b[k].shape[0]):
+          self.b[k][i] -= self.h_param
+          c1 = self.compute_cost(X, Y_true)
+          self.b[k][i] += 2*self.h_param
+          c2 = self.compute_cost(X, Y_true)
+          grad_b[k][i] = (c2 - c1) / (2*self.h_param)
+          self.b[k][i] -= self.h_param
 
-    for i in range(self.w2.shape[0]):  # k
-      for j in range(self.w2.shape[1]):  # d
-        self.w2[i, j] -= self.h_param
-        c1 = self.compute_cost(X, Y_true)
-        self.w2[i, j] += 2*self.h_param
-        c2 = self.compute_cost(X, Y_true)
-        grad_w2[i, j] = (c2 - c1) / (2*self.h_param)
-        self.w2[i, j] -= self.h_param
-    return grad_b1, grad_b2, grad_w1, grad_w2
+        for i in range(self.w[k].shape[0]):  # k
+          for j in range(self.w[k].shape[1]):  # d
+            self.w[k][i, j] -= self.h_param
+            c1 = self.compute_cost(X, Y_true)
+            self.w[k][i, j] += 2*self.h_param
+            c2 = self.compute_cost(X, Y_true)
+            grad_w[k][i, j] = (c2 - c1) / (2*self.h_param)
+            self.w[k][i, j] -= self.h_param
+    return grad_b, grad_w
