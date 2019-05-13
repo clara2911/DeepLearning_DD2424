@@ -225,6 +225,7 @@ class ANN:
         if h_act[i,j] > 0:
           h_act_ind[i, j] = 1
     grad_batch = grad_batch * h_act_ind
+
     grad_w1 = 1 / self.batch_size * np.dot(grad_batch, X_batch.T)
     grad_b1 = 1 / self.batch_size * np.sum(grad_batch, axis=1).reshape(-1, 1)
 
