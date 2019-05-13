@@ -19,13 +19,13 @@ class ANN:
         "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
-        "labda": 8*1e-1, #0, #8*1e-4,  # regularization parameter
-        "batch_size": 20, # examples per minibatch
-        "epochs": 10,  #number of epochs
+        "labda": 8*1e-4, #0, #8*1e-4,  # regularization parameter
+        "batch_size": 100, # examples per minibatch
+        "epochs": 32,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[4,5]
+        "h_sizes":[50]
     }
 
     for var, default in var_defaults.items():
@@ -126,7 +126,13 @@ class ANN:
         plt.bar(x_w+0.35, grad_w_num_vec, 0.35, label=method, color='red')
         plt.legend()
         plt.title(("Gradient check of w", k, ", batch size = " + str(X.shape[1])))
-        plt.show()
+        #plt.show()
+        rel_error = abs(grad_w_vec / grad_w_num_vec - 1)
+        print("METHOD = ", method)
+        print("--- W",k," gradients ---")
+        print("mean relative error: ", np.mean(rel_error))
+
+
 
         grad_b_vec = grad_b[k].flatten()
         grad_b_num_vec = grad_b_num[k].flatten()
@@ -135,7 +141,10 @@ class ANN:
         plt.bar(x_b + 0.35, grad_b_num_vec, 0.35, label=method, color='red')
         plt.legend()
         plt.title(("Gradient check of b", k, ", batch size = " + str(X.shape[1])))
-        plt.show()
+        #plt.show()
+        rel_error = abs(grad_b_vec / grad_b_num_vec - 1)
+        print("--- B",k," gradients ---")
+        print("mean relative error: ", np.mean(rel_error))
 
 
   def evaluate(self, X):
@@ -332,9 +341,10 @@ class ANN:
     grad_b[self.num_hlayers] = np.zeros((self.k, 1))
 
     grad_w[0] = np.zeros((self.m[0], self.d))
-    for k in range(self.num_hlayers-1):
-        grad_w[k] = np.zeros((self.m[k+1], self.m[k]))
-    grad_w[self.num_hlayers] = np.zeros((self.k, self.m[self.num_hlayers]))
+    for k in range(1, self.num_hlayers):
+      grad_w[k] = np.zeros((self.m[k], self.m[k - 1]))
+    grad_w[self.num_hlayers] = np.zeros((self.k, self.m[self.num_hlayers - 1]))
+
 
     c = self.compute_cost(X, Y_true)
 
@@ -347,10 +357,11 @@ class ANN:
 
         for i in range(self.w[k].shape[0]): #k
           for j in range(self.w[k].shape[1]): #d
+
             self.w[k][i,j] += self.h_param
             c2 = self.compute_cost(X, Y_true)
             grad_w[k][i,j] = (c2-c) / self.h_param
-            self.w[k][i,j] -= self.h_param
+            self.w[k][i][j] -= self.h_param
 
     return grad_b, grad_w
 

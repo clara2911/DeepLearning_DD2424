@@ -1,0 +1,112 @@
+50 nodes and lambda 8*1e-4, supposed to be 0.52
+------------------------------------------------------
+               FINAL TEST ACCURACY
+0.4263
+------------------------------------------------------
+
+
+############### 1 layer ############################
+METHOD =  centered_diff
+--- W 0  gradients ---
+mean relative error:  3.684721434221716e-09
+--- B 0  gradients ---
+mean relative error:  5.599175428860903e-09
+METHOD =  centered_diff
+--- W 1  gradients ---
+mean relative error:  1.0099065037016964e-08
+--- B 1  gradients ---
+mean relative error:  5.268478553421829e-09
+
+############### 2 layers ############################
+METHOD =  centered_diff
+--- W 0  gradients ---
+mean relative error:  3.787352570450153e-09
+--- B 0  gradients ---
+mean relative error:  2.856808831164237e-08
+METHOD =  centered_diff
+--- W 1  gradients ---
+mean relative error:  5.503390132499675e-09
+--- B 1  gradients ---
+mean relative error:  9.666936195973364e-09
+METHOD =  centered_diff
+--- W 2  gradients ---
+mean relative error:  1.6208213873825096e-08
+--- B 2  gradients ---
+mean relative error:  2.293727464630635e-08
+
+############### 3 layers ############################
+METHOD =  centered_diff
+--- W 0  gradients ---
+mean relative error:  2.0043891442445005e-08
+--- B 0  gradients ---
+mean relative error:  6.778960665032585e-08
+METHOD =  centered_diff
+--- W 1  gradients ---
+mean relative error:  3.3449294098431004e-09
+--- B 1  gradients ---
+mean relative error:  1.354258388763796e-08
+METHOD =  centered_diff
+--- W 2  gradients ---
+mean relative error:  1.306077990204102e-08
+--- B 2  gradients ---
+mean relative error:  1.3187193309560641e-08
+METHOD =  centered_diff
+--- W 3  gradients ---
+mean relative error:  4.656840962846687e-09
+--- B 3  gradients ---
+mean relative error:  1.1787489073711299e-08
+
+
+
+############## 1 layer #################################
+METHOD =  finite_diff
+--- W 0  gradients ---
+mean relative error:  3.6976015787421046e-06
+--- B 0  gradients ---
+mean relative error:  3.779419655014493e-07
+METHOD =  finite_diff
+--- W 1  gradients ---
+mean relative error:  1.594429225286742e-05
+--- B 1  gradients ---
+mean relative error:  5.417538612273454e-07
+
+############## 2 layers #################################
+
+METHOD =  finite_diff
+--- W 0  gradients ---
+mean relative error:  2.9587945142815764e-06
+--- B 0  gradients ---
+mean relative error:  2.8876184596238197e-07
+METHOD =  finite_diff
+--- W 1  gradients ---
+mean relative error:  5.5609110519300176e-06
+--- B 1  gradients ---
+mean relative error:  4.0766696149385773e-07
+METHOD =  finite_diff
+--- W 2  gradients ---
+mean relative error:  1.182058039735645e-05
+--- B 2  gradients ---
+mean relative error:  1.4927503403261432e-06
+
+############## 3 layers #################################
+
+METHOD =  finite_diff
+--- W 0  gradients ---
+mean relative error:  1.889425907376785e-05
+--- B 0  gradients ---
+mean relative error:  7.388778174299837e-07
+METHOD =  finite_diff
+--- W 1  gradients ---
+mean relative error:  5.178953706150291e-06
+--- B 1  gradients ---
+mean relative error:  3.745154640022452e-07
+METHOD =  finite_diff
+--- W 2  gradients ---
+mean relative error:  1.0332567556343986e-05
+--- B 2  gradients ---
+mean relative error:  1.1508572918261795e-06
+METHOD =  finite_diff
+--- W 3  gradients ---
+mean relative error:  4.053949785517985e-06
+--- B 3  gradients ---
+mean relative error:  7.481133259212846e-07
