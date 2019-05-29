@@ -8,7 +8,6 @@ Last updated: 30-05-2019
 RNN class.
 Initializes and trains the RNN.
 
-
 """
 
 import numpy as np
@@ -23,9 +22,14 @@ class RNN:
         self.b = np.zeros((self.m,1))   # bias vector
         self.c = np.zeros((self.k,1))   # ?
         self.sig = 0.01
+        
+        # TODO check if u w v is indeed the right order and it shouldnt be u v w
         self.u = np.random.rand(self.m, self.k)*self.sig    # weight matrix 1
         self.w = np.random.rand(self.m, self.m)*self.sig    # weight matrix 2
         self.v = np.random.rand(self.k, self.m)*self.sig    # weight matrix 3
+        self.grad_u = 0
+        self.grad_w = 0
+        self.grad_v = 0
         
     def generate(self, h0, x0, n, unique_chars):
       """
