@@ -15,6 +15,7 @@ class Data:
 
     def __init__(self, txtfile):
         self.data_string = self._read_data(txtfile)
+        self.book_data = list(self.data_string)
         self.unique_chars = self._get_unique_chars(self.data_string)
         self.char_to_int_dict, self.int_to_char_dict = self._create_dictionaries(self.unique_chars)
 
@@ -61,7 +62,7 @@ class Data:
     
     def onehot_to_string(self, one_hot_seq):
       """
-      convert a sequence of characters in one-hot encoded to a string
+      convert a matrix of one_hot encodings to a string
       """
       gen_ints = [np.where(r==1)[0][0] for r in one_hot_seq]
       gen_char_list = self.int_to_char(gen_ints)
@@ -70,9 +71,27 @@ class Data:
 
     def string_to_onehot(self, string_seq):
       """
-      convert a sequence of characters in one-hot encoded to a string
+      convert a string to a matrix containing one_hot encoding
       """
       char_list = list(string_seq)
+      int_list = self.char_to_int(char_list)
+      one_hot = np.zeros((len(self.unique_chars), len(int_list)))
+      for i,int_elem in enumerate(int_list):
+        one_hot[int_elem,i] = 1
+      return one_hot
+    
+    def onehot_to_chars(self, one_hot_seq):
+      """
+      convert a matrix of one_hot encodings to a list of chars
+      """
+      gen_ints = [np.where(r==1)[0][0] for r in one_hot_seq]
+      gen_chars = self.int_to_char(gen_ints)
+      return gen_chars
+
+    def chars_to_onehot(self, char_list):
+      """
+      convert a list of chars to a matrix containing one_hot encoding
+      """
       int_list = self.char_to_int(char_list)
       one_hot = np.zeros((len(self.unique_chars), len(int_list)))
       for i,int_elem in enumerate(int_list):
