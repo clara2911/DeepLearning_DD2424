@@ -27,26 +27,33 @@ class RNN:
         self.w = np.random.rand(self.m, self.m)*self.sig    # weight matrix 2
         self.v = np.random.rand(self.k, self.m)*self.sig    # weight matrix 3
         
-
     def generate(self, h0, x0, n, unique_chars):
       """
-      generate a sequence of n characters based on initial hidden state h0 and
-      input character x0
+      generate a sequence of n one_hot encoded characters based on initial 
+      hidden state h0 and input character x0
+      
+      Return: n*k matrix of n generated chars encoded as one-hot vectors
       """
-      char_seq = []
+      # TODO make sure that this predicts the next char not the current one
+      char_seq = np.zeros((n, self.k))
       h_prev = h0
       x_prev = x0
-      for t in range(1,n+1):
+      # for each of the timesteps in our n-length sequence
+      for t in range(n):
+        # compute probability of current character based on previous character
         act_curr = np.dot(self.w, h_prev) + np.dot(self.u, x_prev)
         h_curr = np.tanh(act_curr)
         o_curr = np.dot(self.v, h_curr) + self.c
         prob = self.softmax(o_curr)
         prob = prob.reshape(prob.shape[0],)
-        next_char = self.select_char(prob, unique_chars)
-        char_seq.append(next_char)
         
+        # randomly choose a character for this timestep weighted by the probs
+        predicted_char = self.select_char(prob, unique_chars)
+        char_seq[t] = predicted_char
+        
+        # predict char t+1 based on the h and predicted character of timestep t
         h_prev = h_curr
-        x_prev = x0
+        x_prev = predicted_char.reshape((predicted_char.shape[0],1))
         
       return char_seq
     
@@ -60,10 +67,14 @@ class RNN:
     
     def select_char(self, prob, unique_chars):
       """
-      Use the conditional probabilities of each character at each timestep (probs)
-      to randomly generate a sequence of characters
+      Use the conditional probabilities of a character
+      to generate a one_hot character based on a prob-weighted random choice
       """
-      draw = str(np.random.choice(unique_chars, 1,
-              p=prob))
-      return draw
-
+      # draw an int in [0,k]
+      indices = list(range(self.k))
+      int_draw = int(np.random.choice(indices, 1, p=prob)) 
+      
+      # convert int to one-hot 
+      one_hot_draw = np.zeros(self.k)
+      one_hot_draw[int_draw] = 1    
+      return one_hot_draw
