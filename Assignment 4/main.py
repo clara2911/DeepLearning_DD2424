@@ -20,17 +20,28 @@ np.random.seed(138)
 def main():
   data = Data("goblet_book.txt")
   book_chars = data.unique_chars
-  book_ints = data.char_to_int(book_chars)
   
   rnn1 = RNN()
   x0 = data.string_to_onehot(".")
-  h0 = np.random.rand(rnn1.m,1)
-  n = 100
+  h0 = np.zeros((rnn1.m,1))
+  seq_length = 50
   
-  generated_seq = rnn1.generate(h0, x0, n, book_chars)
-  generated_text = data.onehot_to_string(generated_seq)
+  X, Y = get_inputs(data, seq_length)
+  
+  onehot_seq = rnn1.generate(h0, x0, seq_length, book_chars)
+  generated_text = data.onehot_to_string(onehot_seq)
   print("generated text: ", generated_text)
   
-
+def get_inputs(data, seq_length):
+  """
+  get X (input) and Y (labels) matrices for training the RNN
+  """
+  X_chars = data.book_data[:seq_length]
+  Y_chars = data.book_data[1:seq_length+1]
+  X = data.chars_to_onehot(X_chars)
+  Y = data.chars_to_onehot(Y_chars)
+  return X, Y
+  
+  
 if __name__ == "__main__":
   main()
