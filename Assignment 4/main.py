@@ -11,6 +11,8 @@ Reads in the data. Runs the RNN, and reports the results.
 """
 
 import numpy as np
+import sys
+np.set_printoptions(threshold=sys.maxsize)
 #from data import Data
 #from rnn import RNN
 
@@ -20,17 +22,14 @@ np.random.seed(138)
 def main():
   data = Data("goblet_book.txt")
   book_chars = data.unique_chars
+  seq_length =29
   
   rnn1 = RNN()
-  x0 = data.string_to_onehot(".")
-  h0 = np.zeros((rnn1.m,1))
-  seq_length = 50
-  
   X, Y = get_inputs(data, seq_length)
-  
-  onehot_seq = rnn1.generate(h0, x0, seq_length, book_chars)
-  generated_text = data.onehot_to_string(onehot_seq)
-  print("generated text: ", generated_text)
+  rnn1.train(X, Y)
+  #onehot_seq = rnn1.generate(X, book_chars)
+  #generated_text = data.onehot_to_string(onehot_seq)
+  #print("generated text: ", generated_text)
   
 def get_inputs(data, seq_length):
   """
