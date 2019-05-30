@@ -43,9 +43,9 @@ class RNN:
       self.seq_length = X.shape[1]
       for i in range(epochs):
         p, a, h = self.evaluate(X)
-        loss = compute_loss(p, Y)
-        compute_grads = (p, Y, h, a)
-        update_params()
+        loss = self.compute_loss(p, Y)
+        self.compute_grads(X, Y, p, h, a)
+        #update_params()
         print("epoch ", i, " // loss: ", loss)
         
     def evaluate(self, X):
@@ -79,7 +79,7 @@ class RNN:
         
       return p, a, h
     
-    def compute_loss(p, Y):
+    def compute_loss(self, p, Y):
       """
       Compute the cross entropy loss between:
       - a (seq_len x k) matrix of predicted probabilities
@@ -90,7 +90,7 @@ class RNN:
       # TODO: this can be more efficient without the for loop
       loss = 0
       for t in range(self.seq_length):
-        loss += -np.log(np.dot(Y[:,t].T, p[t])
+        loss += -np.log(np.dot(Y[:,t].T, p[t]))
       return loss
     
     def softmax(self, Y_pred_lin):
@@ -101,14 +101,44 @@ class RNN:
       Y_pred = np.exp(Y_pred_lin) / np.dot(ones.T, np.exp(Y_pred_lin))
       return Y_pred
     
-    def compute_grads(self, p, Y, a, h):
-      pass
-    
+    def compute_grads(self, X, Y, p, a, h):
+      
+      grad_o = -(Y.T - p)
+      
+      grad_v = np.zeros((self.k, self.m))
+      for t in range(self.seq_length):
+        grad_v += np.dot(grad_o[t].reshape(self.k,1), h[t].reshape(1,self.m))
+      
+      grad_a = np.zeros((self.seq_length, self.m))
+      grad_h = np.zeros((self.seq_length, self.m))
+      
+      grad_h[-1] = np.dot(grad_o[-1],self.v)
+      grad_a[-1] = np.dot(grad_h[-1].T, np.diag(1-np.tanh(np.tanh(a[-1])))).T      
+           
+      for t in reversed(range(self.seq_length-1)):
+        grad_h[t] = np.dot(grad_o[t], self.v) + np.dot(grad_a[t+1], self.w)
+        grad_a[t] = np.dot(grad_h[t].T, np.diag(1-np.tanh(np.tanh(a[-1])))).T   
+      
+      grad_c = grad_o.sum(axis = 0).reshape(self.k, 1)
+      grad_b = grad_a.sum(axis = 0).reshape(self.m, 1)
+      
+      grad_w = np.zeros((self.m, self.m))
+      for t in range(self.seq_length):
+        grad_w += np.dot(grad_a[t].T, h[t-1])
+           
+      grad_u = np.zeros((self.m, self.k))
+      for t in range(self.seq_length):
+        grad_u += np.dot(grad_a[t].reshape(self.m,1), X[:,t-1].reshape(1,self.k))
+      
+      self.grad_u = grad_u
+      self.grad_v = grad_v
+      self.grad_w = grad_w
+      self.grad_b = grad_b
+      self.grad_c = grad_c
+         
     def update_params():
       pass
-      
-        
-        
+            
     def generate(self, X, unique_chars):
       """
       generate a sequence of n one_hot encoded characters based on initial 
