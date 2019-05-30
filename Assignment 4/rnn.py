@@ -19,21 +19,20 @@ class RNN:
         self.k = 80                # number of unique characters
         self.eta = 0.1             # learning rate
         self.seq_length = 0       # length of the input sequences
+
+        self.params = self.init_params()
+        self.grads = {}
         
-        
-        
-        # TODO check if u w v is indeed the right order and it shouldnt be u v w
-        self.sig = 0.01
-        self.b = np.zeros((self.m,1))   # bias vector
-        self.c = np.zeros((self.k,1))   # another bias vector
-        self.u = np.random.rand(self.m, self.k)*self.sig    # weight matrix 1
-        self.w = np.random.rand(self.m, self.m)*self.sig    # weight matrix 2
-        self.v = np.random.rand(self.k, self.m)*self.sig    # weight matrix 3
-        self.grad_u = 0
-        self.grad_w = 0
-        self.grad_v = 0
-        self.grad_b = 0
-        self.grad_c = 0
+    def init_params(self):
+      params = {}
+      self.sig = 0.01
+      params['b'] = np.zeros((self.m,1))   # bias vector
+      params['c'] = np.zeros((self.k,1))   # another bias vector
+      params['u'] = np.random.rand(self.m, self.k)*self.sig    # weight matrix 1
+      params['w'] = np.random.rand(self.m, self.m)*self.sig    # weight matrix 2
+      params['v'] = np.random.rand(self.k, self.m)*self.sig    # weight matrix 3
+      return params
+      
         
     def train(self, X, Y, epochs=1):
       """
@@ -47,6 +46,8 @@ class RNN:
         self.compute_grads(X, Y, p, h, a)
         #update_params()
         print("epoch ", i, " // loss: ", loss)
+        
+    
         
     def evaluate(self, X):
       """
@@ -66,9 +67,9 @@ class RNN:
       
       for t in range(self.seq_length):
         xt = X[:,t].reshape((self.k, 1)) # reshape from (k,) to (k,1)
-        a_curr = np.dot(self.w, h_prev) + np.dot(self.u, xt) + self.b
+        a_curr = np.dot(self.params['w'], h_prev) + np.dot(self.params['u'], xt) + self.params['b']
         h_curr = np.tanh(a_curr)
-        o_curr = np.dot(self.v, h_prev) + self.c
+        o_curr = np.dot(self.params['v'], h_prev) + self.params['c']
         p_curr = self.softmax(o_curr)
         
         a[t] = a_curr.reshape(self.m) #reshape from (m,1) to (m,)
@@ -112,11 +113,11 @@ class RNN:
       grad_a = np.zeros((self.seq_length, self.m))
       grad_h = np.zeros((self.seq_length, self.m))
       
-      grad_h[-1] = np.dot(grad_o[-1],self.v)
+      grad_h[-1] = np.dot(grad_o[-1],self.params['v'])
       grad_a[-1] = np.dot(grad_h[-1].T, np.diag(1-np.tanh(np.tanh(a[-1])))).T      
            
       for t in reversed(range(self.seq_length-1)):
-        grad_h[t] = np.dot(grad_o[t], self.v) + np.dot(grad_a[t+1], self.w)
+        grad_h[t] = np.dot(grad_o[t], self.params['v']) + np.dot(grad_a[t+1], self.params['w'])
         grad_a[t] = np.dot(grad_h[t].T, np.diag(1-np.tanh(np.tanh(a[-1])))).T   
       
       grad_c = grad_o.sum(axis = 0).reshape(self.k, 1)
@@ -130,15 +131,19 @@ class RNN:
       for t in range(self.seq_length):
         grad_u += np.dot(grad_a[t].reshape(self.m,1), X[:,t-1].reshape(1,self.k))
       
-      self.grad_u = grad_u
-      self.grad_v = grad_v
-      self.grad_w = grad_w
-      self.grad_b = grad_b
-      self.grad_c = grad_c
-         
+      self.grads['u'] = grad_u
+      self.grads['v'] = grad_v
+      self.grads['w'] = grad_w
+      self.grads['b'] = grad_b
+      self.grads['c'] = grad_c
+      
+      
+    
     def update_params():
       pass
-            
+      
+        
+        
     def generate(self, X, unique_chars):
       """
       generate a sequence of n one_hot encoded characters based on initial 
@@ -163,3 +168,28 @@ class RNN:
       one_hot_draw = np.zeros(self.k)
       one_hot_draw[int_draw] = 1    
       return one_hot_draw
+      
+
+    def check_gradients(self, X, Y, h_param = 1e-5):
+      p, a, h = self.evaluate(X)
+      self.compute_grads(X, Y, p, a, h)
+
+      num_grads = {}
+      for key in self.grads:
+        print("comparing numerical and own gradient for: ", key) 
+        num_grads[key] = self.num_gradient(key, X, Y, h_param)
+        own_grad = self.grads[key]
+        error = np.sum(self.grads[key] - num_grads[key])
+        print(key, " error: ", error)
+
+
+    def num_gradient(self, key, X, Y, h_param):
+      self.params[key] -= h_param
+      p1, _, _ = self.evaluate(X)
+      l1 = self.compute_loss(p1, Y)
+      self.params[key] += h_param
+      p2, _, _ = self.evaluate(X)
+      l2 = self.compute_loss(p2, Y)
+      num_grad = (l2-l1) / (2*h_param)
+      return num_grad
+
