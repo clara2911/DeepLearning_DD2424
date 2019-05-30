@@ -20,7 +20,7 @@ class RNN:
         self.eta = 0.1             # learning rate
         self.seq_length = 25       # length of the input sequences
         self.b = np.zeros((self.m,1))   # bias vector
-        self.c = np.zeros((self.k,1))   # ?
+        self.c = np.zeros((self.k,1))   # another bias vector
         self.sig = 0.01
         
         # TODO check if u w v is indeed the right order and it shouldnt be u v w
