@@ -16,17 +16,18 @@ np.set_printoptions(threshold=sys.maxsize)
 #from data import Data
 #from rnn import RNN
 
-np.random.seed(138)
+np.random.seed(130)
 
 
 def main():
   data = Data("goblet_book.txt")
   book_chars = data.unique_chars
-  seq_length =29
+  seq_length = 50
   
   rnn1 = RNN()
   X, Y = get_inputs(data, seq_length)
-  rnn1.train(X, Y)
+  #rnn1.train(X, Y)
+  rnn1.check_gradients(X,Y)
   #onehot_seq = rnn1.generate(X, book_chars)
   #generated_text = data.onehot_to_string(onehot_seq)
   #print("generated text: ", generated_text)
