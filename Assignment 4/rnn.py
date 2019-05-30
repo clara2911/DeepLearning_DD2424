@@ -43,7 +43,7 @@ class RNN:
       for i in range(epochs):
         p, a, h = self.evaluate(X)
         loss = self.compute_loss(p, Y)
-        self.compute_grads(X, Y, p, h, a)
+        self.compute_grads(X, Y, p, a, h)
         #update_params()
         print("epoch ", i, " // loss: ", loss)
         
@@ -113,12 +113,17 @@ class RNN:
       grad_a = np.zeros((self.seq_length, self.m))
       grad_h = np.zeros((self.seq_length, self.m))
       
-      grad_h[-1] = np.dot(grad_o[-1],self.params['v'])
-      grad_a[-1] = np.dot(grad_h[-1].T, np.diag(1-np.tanh(np.tanh(a[-1])))).T      
+      grad_h[-1] = np.dot(grad_o[-1], self.params['v'])    
+      grad_h_last = grad_h[-1]      
+      diag_part = np.diag(1-np.tanh(a[-1])**2)              
+      grad_a[-1] = np.dot(grad_h_last, diag_part) 
+
            
-      for t in reversed(range(self.seq_length-1)):
+      for t in reversed(range(self.seq_length-1)):        
         grad_h[t] = np.dot(grad_o[t], self.params['v']) + np.dot(grad_a[t+1], self.params['w'])
-        grad_a[t] = np.dot(grad_h[t].T, np.diag(1-np.tanh(np.tanh(a[-1])))).T   
+        grad_h_part = grad_h[t]
+        diag_part = np.diag(1-np.tanh(a[t])**2)
+        grad_a[t] = np.dot(grad_h_part, diag_part) 
       
       grad_c = grad_o.sum(axis = 0).reshape(self.k, 1)
       grad_b = grad_a.sum(axis = 0).reshape(self.m, 1)
@@ -179,6 +184,8 @@ class RNN:
         print("comparing numerical and own gradient for: ", key) 
         num_grads[key] = self.num_gradient(key, X, Y, h_param)
         own_grad = self.grads[key]
+        print("num grad shape: ", num_grads[key].shape)
+        print("own grad shape: ", self.grads[key].shape)
         error = np.sum(self.grads[key] - num_grads[key])
         print(key, " error: ", error)
 
@@ -193,3 +200,7 @@ class RNN:
       num_grad = (l2-l1) / (2*h_param)
       return num_grad
 
+    
+      
+
+      
