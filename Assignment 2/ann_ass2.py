@@ -1,6 +1,6 @@
 """
 This file contains the ANN class, which implements a
-one-layer neural network trained with stochastic gradient descent.
+two-layer neural network trained with stochastic gradient descent.
 
 Author: Clara Tump
 
