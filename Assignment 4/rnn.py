@@ -91,7 +91,7 @@ class RNN:
         xt = X[:,t].reshape((self.k, 1)) # reshape from (k,) to (k,1)
         a_curr = np.dot(self.params['w'], self.h_prev) + np.dot(self.params['u'], xt) + self.params['b']
         h_curr = np.tanh(a_curr)
-        o_curr = np.dot(self.params['v'], self.h_prev) + self.params['c']
+        o_curr = np.dot(self.params['v'], h_curr) + self.params['c']
         p_curr = self.softmax(o_curr)
         
         a[t] = a_curr.reshape(self.m) #reshape from (m,1) to (m,)
