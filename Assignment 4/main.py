@@ -22,25 +22,14 @@ np.random.seed(130)
 def main():
   data = Data("goblet_book.txt")
   book_chars = data.unique_chars
-  seq_length = 50
-  
   rnn1 = RNN()
-  X, Y = get_inputs(data, seq_length)
-  #rnn1.train(X, Y)
-  rnn1.check_gradients(X,Y)
+  rnn1.train(data)
+  #rnn1.check_gradients(data)
   #onehot_seq = rnn1.generate(X, book_chars)
   #generated_text = data.onehot_to_string(onehot_seq)
   #print("generated text: ", generated_text)
   
-def get_inputs(data, seq_length):
-  """
-  get X (input) and Y (labels) matrices for training the RNN
-  """
-  X_chars = data.book_data[:seq_length]
-  Y_chars = data.book_data[1:seq_length+1]
-  X = data.chars_to_onehot(X_chars)
-  Y = data.chars_to_onehot(Y_chars)
-  return X, Y
+
   
   
 if __name__ == "__main__":
