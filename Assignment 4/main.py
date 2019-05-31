@@ -16,7 +16,7 @@ np.set_printoptions(threshold=sys.maxsize)
 #from data import Data
 #from rnn import RNN
 
-np.random.seed(130)
+np.random.seed(110)
 
 
 def main():
@@ -25,12 +25,6 @@ def main():
   rnn1 = RNN()
   rnn1.train(data)
   #rnn1.check_gradients(data)
-  #onehot_seq = rnn1.generate(X, book_chars)
-  #generated_text = data.onehot_to_string(onehot_seq)
-  #print("generated text: ", generated_text)
-  
-
-  
-  
+ 
 if __name__ == "__main__":
   main()
