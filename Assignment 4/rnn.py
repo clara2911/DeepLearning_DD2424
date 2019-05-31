@@ -11,17 +11,23 @@ Initializes and trains the RNN.
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 class RNN:
 
     def __init__(self):
-        self.m = 100               #hidden layer length
+        self.m = 20               #hidden layer length
         self.k = 80                # number of unique characters
         self.eta = 0.1             # learning rate
-        self.seq_length = 0       # length of the input sequences
+        self.seq_length = 5       # length of the input sequences
+        self.e = 0
+        self.cum_g2 = self.init_cum_gradient_squared()
+        self.eps = 1e-8
+        self.h_prev = np.zeros((self.m,1))
 
         self.params = self.init_params()
         self.grads = {}
+        
         
     def init_params(self):
       params = {}
@@ -32,51 +38,68 @@ class RNN:
       params['w'] = np.random.rand(self.m, self.m)*self.sig    # weight matrix 2
       params['v'] = np.random.rand(self.k, self.m)*self.sig    # weight matrix 3
       return params
+    
+    def init_cum_gradient_squared(self):
+      cum_sum = {}
+      cum_sum['b'] = np.zeros((self.m,1))   # bias vector
+      cum_sum['c'] = np.zeros((self.k,1))   # another bias vector
+      cum_sum['u'] = np.zeros((self.m, self.k))    # weight matrix 1
+      cum_sum['w'] = np.zeros((self.m, self.m))    # weight matrix 2
+      cum_sum['v'] = np.zeros((self.k, self.m))    # weight matrix 3
+      return cum_sum
       
         
-    def train(self, X, Y, epochs=1):
+    def train(self, data, epochs=8):
       """
       Train the RNN using backpropagation through time (bptt)
       """
-      # now putting this twice. need to find a smarter way
-      self.seq_length = X.shape[1]
+      book_length = len(data.book_data)    
+      smooth_loss = None
       for i in range(epochs):
+        X, Y = self.get_matrices(data)
         p, a, h = self.evaluate(X)
         loss = self.compute_loss(p, Y)
+        smooth_loss = self.compute_smooth_loss(loss, smooth_loss)
         self.compute_grads(X, Y, p, a, h)
-        #update_params()
-        print("epoch ", i, " // loss: ", loss)
+        self.update_params()
+        self.report_progress(smooth_loss)
+        self.update_e(book_length)
+        print("epoch ", i, " // loss: ", round(loss,3), " // smooth loss: ", round(smooth_loss,3))
         
-    
-        
+    def get_matrices(self, data):
+      """
+      get X (input) and Y (labels) matrices from the list of characters
+      """
+      X_chars = data.book_data[self.e : self.e + self.seq_length]
+      Y_chars = data.book_data[self.e + 1 : self.e + self.seq_length + 1]
+      X = data.chars_to_onehot(X_chars)
+      Y = data.chars_to_onehot(Y_chars)
+      return X, Y
+       
     def evaluate(self, X):
       """
       evaluates a sequence of one-hot encoded characters X and outputs a 
       probability vector at each X_t representing the predicted probs
       for the next character.
       Used as forward pass of the backpropagation through time (bptt)
-      """
-      # can ignore this when training. or need to find a better place for it
-      self.seq_length = X.shape[1]
-      
+      """     
       p = np.zeros((self.seq_length, self.k))
       a = np.zeros((self.seq_length, self.m))
       h = np.zeros((self.seq_length, self.m))
       
-      h_prev = np.zeros((self.m,1))
-      
       for t in range(self.seq_length):
         xt = X[:,t].reshape((self.k, 1)) # reshape from (k,) to (k,1)
-        a_curr = np.dot(self.params['w'], h_prev) + np.dot(self.params['u'], xt) + self.params['b']
+        a_curr = np.dot(self.params['w'], self.h_prev) + np.dot(self.params['u'], xt) + self.params['b']
         h_curr = np.tanh(a_curr)
-        o_curr = np.dot(self.params['v'], h_prev) + self.params['c']
+        o_curr = np.dot(self.params['v'], self.h_prev) + self.params['c']
         p_curr = self.softmax(o_curr)
         
         a[t] = a_curr.reshape(self.m) #reshape from (m,1) to (m,)
         h[t] = h_curr.reshape(self.m) #reshape from (m,1) to (m,)
         p[t] = p_curr.reshape(self.k) #reshape from (k,1) to (k,)
-        
-        h_prev = h_curr
+        # TODO not 100% sure if this should be done every timestep or every
+        # epoch
+        self.h_prev = h_curr
         
       return p, a, h
     
@@ -93,6 +116,17 @@ class RNN:
       for t in range(self.seq_length):
         loss += -np.log(np.dot(Y[:,t].T, p[t]))
       return loss
+    
+    def compute_smooth_loss(self, loss, smooth_loss):
+      """
+      compute a smoothed version of the loss, since the simple loss fluctuates
+      a lot
+      """
+      if smooth_loss == None:
+        smooth_loss = loss
+      else:
+        smooth_loss = 0.999 * smooth_loss + 0.001 * loss
+      return smooth_loss
     
     def softmax(self, Y_pred_lin):
       """
@@ -139,14 +173,35 @@ class RNN:
       self.grads['u'] = grad_u
       self.grads['v'] = grad_v
       self.grads['w'] = grad_w
-      self.grads['b'] = grad_b
-      self.grads['c'] = grad_c
+      self.grads['b'] = 0.5*grad_b
+      self.grads['c'] = 0.5*grad_c
+       
+    def update_params(self):
+      """
+      update the parameters according to AdaGrad gradient descent
+      """
+      for key in self.params:
+        param = self.params[key]
+        grad = self.grads[key]
+        Gt = self.cum_g2[key] + np.square(grad)
+        eps = self.eps * np.ones(Gt.shape)
+        updated_param = param - self.eta / (np.sqrt(Gt + eps)) * grad
+        self.params[key] = updated_param
+        self.cum_g2[key] = Gt
+           
+    def update_e(self, book_length):
+      """
+      Update the counter of where we are in the book (e).
+      If we are at the end of the book, we start at the beginning again.
+      """
+      new_e = self.e + self.seq_length
+      if new_e > (book_length - self.seq_length -1):
+        new_e = 0
+      self.e = new_e
       
       
-    
-    def update_params():
+    def report_progress(self, smooth_loss):
       pass
-      
         
         
     def generate(self, X, unique_chars):
@@ -181,26 +236,47 @@ class RNN:
 
       num_grads = {}
       for key in self.grads:
-        print("comparing numerical and own gradient for: ", key) 
-        num_grads[key] = self.num_gradient(key, X, Y, h_param)
+        print("----------------------------------------------------------------")
+        print("comparing numerical and own gradient for: " + str(key)) 
+        print("----------------------------------------------------------------")
+        num_grad = self.num_gradient(key, X, Y, h_param)
         own_grad = self.grads[key]
-        print("num grad shape: ", num_grads[key].shape)
+        print("num grad shape: ", num_grad.shape)
         print("own grad shape: ", self.grads[key].shape)
-        error = np.sum(self.grads[key] - num_grads[key])
-        print(key, " error: ", error)
+        error = np.sum(self.grads[key] - num_grad)
+        
+        grad_w_vec = own_grad.flatten()
+        grad_w_num_vec = num_grad.flatten()
+        x_w = np.arange(1, grad_w_vec.shape[0] + 1)
+        plt.figure(figsize=(18, 16), dpi= 80, facecolor='w', edgecolor='k')
+        plt.bar(x_w, grad_w_vec, 0.35, label='Analytical gradient', color='blue')
+        plt.bar(x_w+0.35, grad_w_num_vec, 0.35, label='numerical gradient',  color='red')
+        plt.legend()
+        plt.title("Gradient check of: " + str(key))
+        plt.show()
+        rel_error = abs(grad_w_vec / grad_w_num_vec - 1)
+        print("mean relative error: ", np.mean(rel_error))
 
 
     def num_gradient(self, key, X, Y, h_param):
-      self.params[key] -= h_param
-      p1, _, _ = self.evaluate(X)
-      l1 = self.compute_loss(p1, Y)
-      self.params[key] += h_param
-      p2, _, _ = self.evaluate(X)
-      l2 = self.compute_loss(p2, Y)
-      num_grad = (l2-l1) / (2*h_param)
-      return num_grad
-
-    
-      
-
-      
+      num_grad = np.zeros(self.grads[key].shape)
+      if key == 'b' or 'c': # need to loop over 1 dim
+        for i in range(self.params[key].shape[0]):
+          self.params[key][i] -= h_param
+          p1, _, _ = self.evaluate(X)
+          l1 = self.compute_loss(p1, Y)
+          self.params[key][i] += h_param
+          p2, _, _ = self.evaluate(X)
+          l2 = self.compute_loss(p2, Y)
+          num_grad[i] = (l2-l1) / (2*h_param)
+      else: # need to loop over 2 dimensions
+        for i in range(self.params[key].shape[0]):
+          for j in range(self.params[key].shape[1]):
+            self.params[key][i,j] -= h_param
+            p1, _, _ = self.evaluate(X)
+            l1 = self.compute_loss(p1, Y)
+            self.params[key][i,j] += h_param
+            p2, _, _ = self.evaluate(X)
+            l2 = self.compute_loss(p2, Y)
+            num_grad[i,j] = (l2-l1) / (2*h_param)    
+      return num_grad    
