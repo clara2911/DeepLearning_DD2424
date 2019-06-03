@@ -39,6 +39,8 @@ class ANN:
     self.w = self.init_weight_mats()
     self.b = self.init_biases()
     self.ns = 2*int(self.n/self.batch_size)
+    self.beta = self.init_biases()
+    self.gamma = self.init_gamma()
 
 
   def init_weight_mats(self):
@@ -63,6 +65,18 @@ class ANN:
       w[i] = np.random.normal(self.m_weights, sigma_weights_w[i], (self.m[i], self.m[i-1]))
     w[num_ws-1] = np.random.normal(self.m_weights, sigma_weights_w[num_ws-1], (self.k, self.m[num_ws-2]))
     return w
+  
+  def init_gamma(self):
+    """
+    Initialize gamma using He initialization
+    """
+    gamma = [None]*(self.num_hlayers)
+    for i in range(self.num_hlayers):
+      input_size = self.h_sizes[i]
+      var = np.sqrt(2 / input_size)
+      gamma[i] = np.random.normal(self.m_weights, var, (input_size,1))
+    return gamma
+      
 
 
   def init_biases(self):
@@ -90,7 +104,7 @@ class ANN:
         j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:, j_start:j_end]
         Y_batch = Y_train[:, j_start:j_end]
-        Y_pred, act_h = self.evaluate(X_batch)
+        Y_pred, act_h = self.evaluate(X_batch, batch_norm=True)
         grad_b, grad_w = self.compute_gradients(X_batch, Y_batch, Y_pred, act_h)
         for k in range(self.num_hlayers+1):
           self.w[k] = self.w[k] - self.lr*grad_w[k]
@@ -147,7 +161,7 @@ class ANN:
         print("mean relative error: ", np.mean(rel_error))
 
 
-  def evaluate(self, X):
+  def evaluate(self, X, batch_norm=True):
     """
     use the classifier with current weights and bias to make a 
     prediction of the one-hot encoded targets (Y)
@@ -156,15 +170,30 @@ class ANN:
     b: Kx1
     output Y_pred = kxN
     """
+    
     act_h = [None] * (self.num_hlayers + 1)
     # first layer
-    before_relu = np.dot(self.w[0], X) + self.b[0]
-    act_h[0] = np.maximum(0, before_relu)
+    s = np.dot(self.w[0], X) + self.b[0]
+    if batch_norm:
+      mu = 1/s.shape[1] * np.sum(s, axis = 1)
+      var = 1/ s.shape[1] * np.sum(((s.T - mu).T)**2, axis = 1)
+      normlz_s = self.batch_norm(s, mu, var)
+      final_s = self.gamma[0] * normlz_s + self.beta[0]
+      act_h[0] = np.maximum(0, final_s)
+    else:
+      act_h[0] = np.maximum(0, s)
 
     # second until last layer
-    for i in range(1,self.num_hlayers+1):
-      before_relu = np.dot(self.w[i], act_h[i-1]) + self.b[i]
-      act_h[i] = np.maximum(0, before_relu)
+    for i in range(1,self.num_hlayers):
+      s = np.dot(self.w[i], act_h[i-1]) + self.b[i] 
+      if batch_norm:
+        mu = 1/s.shape[1] * np.sum(s, axis = 1)
+        var = 1/ s.shape[1] * np.sum(((s.T - mu).T)**2, axis = 1)
+        normlz_s = self.batch_norm(s, mu, var)
+        final_s = self.gamma[i] * normlz_s + self.beta[i]
+        act_h[i] = np.maximum(0, final_s)
+      else:
+        act_h[i] = np.maximum(0, s)
 
     before_relu = np.dot(self.w[self.num_hlayers], act_h[self.num_hlayers-1]) + self.b[self.num_hlayers]
     Y_pred = self.softmax(before_relu)
@@ -177,6 +206,10 @@ class ANN:
     ones = np.ones(Y_pred_lin.shape[0])
     Y_pred = np.exp(Y_pred_lin) / np.dot(ones.T, np.exp(Y_pred_lin))
     return Y_pred
+  
+  def batch_norm(self, s, mu, var):
+    normlz_s = np.dot(((np.diag(var+self.h_param))**(-0.5)), (s.T - mu).T)
+    return normlz_s
 
 
   def compute_cost(self, X, Y_true):
