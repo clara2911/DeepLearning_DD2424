@@ -1,6 +1,7 @@
 """
 This file contains the ANN class, which implements a
-one-layer neural network trained with stochastic gradient descent.
+k-layer neural network trained with stochastic gradient descent 
+and a cyclical learning rate.
 
 Author: Clara Tump
 
@@ -11,7 +12,7 @@ import matplotlib.pyplot as plt
 
 class ANN:
 
-  def __init__(self, data, targets, **kwargs):
+  def __init__(self, data, targets, batch_norm_flag = True, **kwargs):
     """
     Initialize Neural Network with data and parameters
     """
@@ -30,6 +31,9 @@ class ANN:
 
     for var, default in var_defaults.items():
         setattr(self, var, kwargs.get(var, default))
+        
+    self.batch_norm_flag = batch_norm_flag
+    print("batch norm used: ", self.batch_norm_flag)
 
     self.d = data.shape[0]
     self.n = data.shape[1]
@@ -88,6 +92,8 @@ class ANN:
       b[i] = np.zeros((self.m[i], 1))
     b[self.num_hlayers] = np.zeros((self.k, 1))
     return b
+  
+  
 
   def train(self, X_train, Y_train, X_val, Y_val, verbosity=True):
     """
@@ -104,7 +110,7 @@ class ANN:
         j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:, j_start:j_end]
         Y_batch = Y_train[:, j_start:j_end]
-        Y_pred, act_h = self.evaluate(X_batch, batch_norm=True)
+        Y_pred, act_h = self.evaluate(X_batch, batch_norm=self.batch_norm_flag)
         grad_b, grad_w = self.compute_gradients(X_batch, Y_batch, Y_pred, act_h)
         for k in range(self.num_hlayers+1):
           self.w[k] = self.w[k] - self.lr*grad_w[k]
@@ -123,7 +129,7 @@ class ANN:
     The analytical (self computed) and numerical gradients of b and w are plotted for comparison
     """
     grad_w_num = np.zeros((self.k, self.d))
-    Y_pred, h_act = self.evaluate(X)
+    Y_pred, h_act = self.evaluate(X, batch_norm=self.batch_norm_flag)
     grad_b, grad_w  = self.compute_gradients(X, Y, Y_pred, h_act)
     if method == 'finite_diff':
       grad_b_num, grad_w_num = self.compute_gradient_num_fast(X, Y)
@@ -172,6 +178,13 @@ class ANN:
     """
     
     act_h = [None] * (self.num_hlayers + 1)
+    s = [None] * (self.num_hlayers + 1)
+    normlz_s = [None] * (self.num_hlayers + 1)
+    mu = [None] * (self.num_hlayers + 1)
+    var = [None] * (self.num_hlayers + 1)
+    
+    
+    
     # first layer
     s = np.dot(self.w[0], X) + self.b[0]
     if batch_norm:
@@ -197,7 +210,7 @@ class ANN:
 
     before_relu = np.dot(self.w[self.num_hlayers], act_h[self.num_hlayers-1]) + self.b[self.num_hlayers]
     Y_pred = self.softmax(before_relu)
-    return Y_pred, act_h
+    return Y_pred, act_h#, X, s, normlz_s, mu, var
 
   def softmax(self, Y_pred_lin):
     """
@@ -208,7 +221,9 @@ class ANN:
     return Y_pred
   
   def batch_norm(self, s, mu, var):
-    normlz_s = np.dot(((np.diag(var+self.h_param))**(-0.5)), (s.T - mu).T)
+    part1 = np.diag(np.power((var + self.h_param),(-1/2)))
+    part2 = (s.T - mu).T
+    normlz_s = np.dot(part1, part2)
     return normlz_s
 
 
@@ -216,7 +231,7 @@ class ANN:
     """
     compute the cost based on the current estimations of w and b
     """
-    Y_pred, act_h = self.evaluate(X)
+    Y_pred, act_h = self.evaluate(X, batch_norm = self.batch_norm_flag)
     num_exampl = X.shape[1]
 
     rglz = 0
@@ -291,6 +306,21 @@ class ANN:
     """
     grad_batch = - (y_true_batch - y_pred_batch)
     return grad_batch
+  
+  
+  def batch_norm_backpass(grad_batch, s_batch, mu, var):
+    """
+    the backwards pass of batch normalization
+    """
+    sigma_1 = ((var + self.h_param)**(-0.5)).T
+    sigma_2 = ((var + self.h_param)**(-1.5)).T
+    bigG1 = grad_batch * dot(sigma_1, np.ones(self.batch_size).T)
+    bigG2 = grad_batch * dot(sigma_2, np.ones(self.batch_size).T)
+    bigD = s_batch - np.dot(mu, np.ones(self.batch_size).T)
+    c = np.dot((bigG2 * D), np.ones(self.batch_size))
+    grad_batch = bigG1 - 1/self.batch_size * np.dot(bigG1, np.ones(self.batch_size))
+    grad_batch -= 1 / self.batch_size * ( D * np.dot(c, np.ones(self.batch_size).T))
+    return grad_batch
 
   def cyclic_lr(self, t):
     """
@@ -310,8 +340,8 @@ class ANN:
     Compute and store the performance (cost and accuracy) of the model after every epoch, 
     so it can be used later to plot the evolution of the performance
     """
-    Y_pred_train, act_h = self.evaluate(X_train)
-    Y_pred_val, act_h_2 = self.evaluate(X_val)
+    Y_pred_train, act_h = self.evaluate(X_train, self.batch_norm_flag)
+    Y_pred_val, act_h_2 = self.evaluate(X_val, self.batch_norm_flag)
     cost_train = self.compute_cost(X_train, Y_pred_train)
     acc_train = self.compute_accuracy(Y_pred_train, Y_train)
     cost_val = self.compute_cost(X_val, Y_pred_val)
