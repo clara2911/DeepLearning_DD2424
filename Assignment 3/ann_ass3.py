@@ -21,12 +21,12 @@ class ANN:
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
         "labda": 8*1e-4, #0, #8*1e-4,  # regularization parameter
-        "batch_size": 100, # examples per minibatch
-        "epochs": 32,  #number of epochs
+        "batch_size": 3, # examples per minibatch
+        "epochs": 1,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[50]
+        "h_sizes":[4,4,4]
     }
 
     for var, default in var_defaults.items():
@@ -103,6 +103,7 @@ class ANN:
     self.cost_hist_val = []
     self.acc_hist_tr = []
     self.acc_hist_val = []
+    
     num_batches = int(self.n/self.batch_size)
     for i in range(self.epochs):
       for j in range(num_batches):
@@ -110,11 +111,14 @@ class ANN:
         j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:, j_start:j_end]
         Y_batch = Y_train[:, j_start:j_end]
-        Y_pred, act_h = self.evaluate(X_batch, batch_norm=self.batch_norm_flag)
-        grad_b, grad_w = self.compute_gradients(X_batch, Y_batch, Y_pred, act_h)
-        for k in range(self.num_hlayers+1):
-          self.w[k] = self.w[k] - self.lr*grad_w[k]
-          self.b[k] = self.b[k] - self.lr*grad_b[k]
+        
+        Y_pred, act_h, X_batch, s, normlz_s, mu, var = self.evaluate(X_batch, \
+                                                batch_norm=self.batch_norm_flag)
+        #hello = hello * 3
+        grad_b, grad_w, grad_beta, grad_gamma = self.compute_gradients(X_batch, \
+                                   Y_batch, Y_pred, act_h, s, normlz_s, mu, var)
+        self.update_params(grad_b, grad_w, grad_beta, grad_gamma)
+        
         self.lr = self.cyclic_lr(i*num_batches + j)
       self.report_perf(i, X_train, Y_train, X_val, Y_val, verbosity)
     self.plot_cost_and_acc()
@@ -178,39 +182,37 @@ class ANN:
     """
     
     act_h = [None] * (self.num_hlayers + 1)
-    s = [None] * (self.num_hlayers + 1)
-    normlz_s = [None] * (self.num_hlayers + 1)
-    mu = [None] * (self.num_hlayers + 1)
-    var = [None] * (self.num_hlayers + 1)
+    s = [None] * (self.num_hlayers)
+    normlz_s = [None] * (self.num_hlayers)
+    final_s = [None] * (self.num_hlayers)
+    mu = [None] * (self.num_hlayers)
+    var = [None] * (self.num_hlayers)
     
-    
-    
-    # first layer
-    s = np.dot(self.w[0], X) + self.b[0]
-    if batch_norm:
-      mu = 1/s.shape[1] * np.sum(s, axis = 1)
-      var = 1/ s.shape[1] * np.sum(((s.T - mu).T)**2, axis = 1)
-      normlz_s = self.batch_norm(s, mu, var)
-      final_s = self.gamma[0] * normlz_s + self.beta[0]
-      act_h[0] = np.maximum(0, final_s)
-    else:
-      act_h[0] = np.maximum(0, s)
-
-    # second until last layer
-    for i in range(1,self.num_hlayers):
-      s = np.dot(self.w[i], act_h[i-1]) + self.b[i] 
-      if batch_norm:
-        mu = 1/s.shape[1] * np.sum(s, axis = 1)
-        var = 1/ s.shape[1] * np.sum(((s.T - mu).T)**2, axis = 1)
-        normlz_s = self.batch_norm(s, mu, var)
-        final_s = self.gamma[i] * normlz_s + self.beta[i]
-        act_h[i] = np.maximum(0, final_s)
+    # first until last layer
+    for i in range(self.num_hlayers):
+      if i == 0:
+        s[i] = np.dot(self.w[i], X) + self.b[i] 
       else:
-        act_h[i] = np.maximum(0, s)
+        s[i] = np.dot(self.w[i], act_h[i-1]) + self.b[i] 
+      if batch_norm:
+        mu[i] = 1/s[i].shape[1] * np.sum(s[i], axis = 1)
+        var[i] = 1/ s[i].shape[1] * np.sum(((s[i].T - mu[i]).T)**2, axis = 1)
+        normlz_s[i] = self.batch_norm(s[i], mu[i], var[i])
+        final_s[i] = self.gamma[i] * normlz_s[i] + self.beta[i]
+        act_h[i] = np.maximum(0, final_s[i])
+      else:
+        act_h[i] = np.maximum(0, s[i])
+        
+    
 
-    before_relu = np.dot(self.w[self.num_hlayers], act_h[self.num_hlayers-1]) + self.b[self.num_hlayers]
-    Y_pred = self.softmax(before_relu)
-    return Y_pred, act_h#, X, s, normlz_s, mu, var
+    # this part is not put into backprop now
+    s_last = np.dot(self.w[-1], act_h[-2]) + self.b[-1]
+    Y_pred = self.softmax(s_last)
+    print("normlz_s")
+    print(normlz_s)
+    print("mu")
+    print(mu)
+    return Y_pred, act_h, X, s, normlz_s, mu, var
 
   def softmax(self, Y_pred_lin):
     """
@@ -263,15 +265,58 @@ class ANN:
     return accuracy
 
 
-  def compute_gradients(self, X_batch, y_true_batch, y_pred_batch, act_h):
+  def compute_gradients(self, X_batch, y_true_batch, y_pred_batch, act_h, s, normlz_s, mu, var):
     """
     compute the gradients of the loss, so the parameters can be updated in the direction of the steepest gradient. 
     """
+    grad_b = [None]*(self.num_hlayers+1) # check if this shouldnt be one shorter
+    grad_w = [None]*(self.num_hlayers+1)
+    grad_gamma = [None]*(self.num_hlayers)
+    grad_beta = [None]*(self.num_hlayers)
+    
     # gradient of batch
     grad_batch = self.compute_gradient_batch(y_true_batch, y_pred_batch)
-
-    grad_b = [None]*(self.num_hlayers+1)
-    grad_w = [None]*(self.num_hlayers+1)
+    print("shape grad batch: ", grad_batch.shape)
+    
+    # gradient of W and b for the last layer
+    grad_w[-1] = (1/ self.batch_size) * np.dot(grad_batch, act_h[-2].T) 
+    grad_b[-1] = (1/ self.batch_size) * np.sum(grad_batch, axis=1).reshape(-1, 1)
+    
+    #propagate the gradient to previous layers
+    grad_batch = np.dot(self.w[-1].T, grad_batch)
+    
+    # this is grad_batch * ind(X_batch[-2] > 0)
+    layers_input = act_h[-2]
+    h_act_ind = np.zeros(layers_input.shape)
+    for k in range(layers_input.shape[0]):
+      for j in range(layers_input.shape[1]):
+        if layers_input[k,j] > 0:
+          h_act_ind[k, j] = 1
+    grad_batch = grad_batch * h_act_ind
+    
+    # compute everything backwards from the second-last to the first layer
+    for l in range(self.num_hlayers,0,-1):
+      print("grad batch shape ", grad_batch.shape)
+      
+      grad_gamma[l] = (1/self.batch_size) * np.dot((grad_batch * normlz_s[l]), np.ones(self.batch_size))
+      grad_beta[l] = (1/self.batch_size) * np.dot(grad_batch, np.ones(self.batch_size))
+      print("normlz s shape: ", len(normlz_s[l]))
+      #propagate gradient through scale&shift and batch norm
+      grad_batch = grad_batch * np.dot(self.gamma[l], np.ones(self.batch_size).T)
+      grad_batch = self.batch_norm_backpass(grad_batch, s[l], mu[l], var[l])
+    
+    niks = hello * 4
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     # layer last (num_hlayers+1) until second (1), looping backwards
 
     for i in range(self.num_hlayers,0,-1):
@@ -321,11 +366,23 @@ class ANN:
     grad_batch = bigG1 - 1/self.batch_size * np.dot(bigG1, np.ones(self.batch_size))
     grad_batch -= 1 / self.batch_size * ( D * np.dot(c, np.ones(self.batch_size).T))
     return grad_batch
+  
+  def update_params(self, grad_b, grad_w, grad_beta, grad_gamma):
+    """
+    Update the parameters in the direction of the steepest gradient
+    Beta and gamma are the scaling and shifting parameters of batch norm
+    """
+    for k in range(self.num_hlayers+1):
+      self.w[k] = self.w[k] - self.lr*grad_w[k]
+      self.b[k] = self.b[k] - self.lr*grad_b[k]
+      self.beta[k] = self.beta[k] - self.lr*grad_beta[k]
+      self.gamma[k] = self.gamma[k] - self.lr*grad_gamma[k]
 
   def cyclic_lr(self, t):
     """
     Update learning rate according to a cyclic learning rate scheme
-    Learning rate increases linearly from 2*l*ns till (2*l+1)*ns and then decreases linearly again until 2*(l+1)*ns
+    Learning rate increases linearly from 2*l*ns till (2*l+1)*ns and then
+    decreases linearly again until 2*(l+1)*ns
     """
     l = int(t/(2*self.ns))
     if t < (2*l + 1)*self.ns:
@@ -394,7 +451,8 @@ class ANN:
     """
     Method to check the gradient calculation.
     Gradient computed numerically based on the finite difference method
-    :param h_param: a parameter needed to be set for the finite difference method, usually around 1e-6
+    :param h_param: a parameter needed to be set for
+    the finite difference method, usually around 1e-6
     """
     grad_w = [None]*(self.num_hlayers+1)
     grad_b = [None]*(self.num_hlayers+1)
@@ -432,7 +490,8 @@ class ANN:
     """
     Method to check the gradient calculation.
     Gradient computed numerically based on the centered difference method
-    :param h_param: a parameter needed to be set for the centered difference method, usually around 1e-6
+    :param h_param: a parameter needed to be set for
+    the centered difference method, usually around 1e-6
     """
     grad_w = [None] * (self.num_hlayers + 1)
     grad_b = [None] * (self.num_hlayers + 1)
