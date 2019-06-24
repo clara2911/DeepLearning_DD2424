@@ -1,7 +1,7 @@
 """
 This file contains the ANN class, which implements a
 k-layer neural network trained with stochastic gradient descent 
-and a cyclical learning rate.
+and batch normlalization implemented from scratch.
 
 Author: Clara Tump
 
@@ -21,19 +21,19 @@ class ANN:
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
         "labda": 8*1e-4, #0, #8*1e-4,  # regularization parameter
-        "batch_size": 3, # examples per minibatch
-        "epochs": 2,  #number of epochs
+        # there was an error when no. examples are 8 and batch size 4. Maybe a mistake?
+        "batch_size": 5, # examples per minibatch
+        "epochs": 1,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[6]
+        "h_sizes":[4,6,8, 2]
     }
 
     for var, default in var_defaults.items():
         setattr(self, var, kwargs.get(var, default))
         
     self.batch_norm_flag = batch_norm_flag
-    print("batch norm used: ", self.batch_norm_flag)
 
     self.d = data.shape[0]
     self.n = data.shape[1]
@@ -111,17 +111,17 @@ class ANN:
         j_end = j*self.batch_size + self.batch_size
         X_batch = X_train[:, j_start:j_end]
         Y_batch = Y_train[:, j_start:j_end]
-        
         Y_pred, act_h, X_batch, s, normlz_s, mu, var = self.evaluate(X_batch, \
                                                 batch_norm=self.batch_norm_flag)
+        
         grad_b, grad_w, grad_beta, grad_gamma = self.compute_gradients(X_batch, \
-                                   Y_batch, Y_pred, act_h, s, normlz_s, mu, var)
-        self.update_params(grad_b, grad_w, grad_beta, grad_gamma)
+                                   Y_batch, Y_pred, act_h, s, normlz_s, mu, var, \
+                                   batch_norm=self.batch_norm_flag)
+        self.update_params(grad_b, grad_w, grad_beta, grad_gamma, batch_norm = self.batch_norm_flag)
         
         self.lr = self.cyclic_lr(i*num_batches + j)
-      #self.report_perf(i, X_train, Y_train, X_val, Y_val, verbosity)
+      self.report_perf(i, X_train, Y_train, X_val, Y_val, verbosity)
     self.plot_cost_and_acc()
-    #self.show_w()
 
   def check_gradients(self, X, Y, method='finite_diff'):
     """
@@ -133,7 +133,7 @@ class ANN:
     """
     grad_w_num = np.zeros((self.k, self.d))
     Y_pred, h_act,s, _, normlz_s, mu, var = self.evaluate(X, batch_norm=self.batch_norm_flag)
-    grad_b, grad_w, grad_beta, grad_gamma  = self.compute_gradients(X, Y, Y_pred, h_act, s, normlz_s, mu, var)
+    grad_b, grad_w, grad_beta, grad_gamma  = self.compute_gradients(X, Y, Y_pred, h_act, s, normlz_s, mu, var, batch_norm=self.batch_norm_flag)
     if method == 'finite_diff':
       grad_b_num, grad_w_num = self.compute_gradient_num_fast(X, Y)
     elif method == 'centered_diff':
@@ -142,6 +142,9 @@ class ANN:
       print(method, " IS NOT A VALID NUMERICAL GRADIENT CHECKING.")
 
     for k in range(self.num_hlayers + 1):
+        
+        print("-------------------- W",k," gradients ------------------------")
+        print("METHOD = ", method)
         grad_w_vec = grad_w[k].flatten()
         grad_w_num_vec = grad_w_num[k].flatten()
         x_w = np.arange(1, grad_w_vec.shape[0] + 1)
@@ -150,13 +153,12 @@ class ANN:
         plt.legend()
         plt.title(("Gradient check of w", k, ", batch size = " + str(X.shape[1])))
         plt.show()
-        rel_error = abs(grad_w_vec / grad_w_num_vec - 1)
-        print("METHOD = ", method)
-        print("--- W",k," gradients ---")
+        rel_error = abs((grad_w_vec+self.h_param) / (grad_w_num_vec+self.h_param) - 1)
+        
         print("mean relative error: ", np.mean(rel_error))
 
 
-
+        print("--------------------- B",k," gradients ------------------------")
         grad_b_vec = grad_b[k].flatten()
         grad_b_num_vec = grad_b_num[k].flatten()
         x_b = np.arange(1, grad_b[k].shape[0] + 1)
@@ -165,8 +167,8 @@ class ANN:
         plt.legend()
         plt.title(("Gradient check of b", k, ", batch size = " + str(X.shape[1])))
         plt.show()
-        rel_error = abs(grad_b_vec / grad_b_num_vec - 1)
-        print("--- B",k," gradients ---")
+        rel_error = abs((grad_b_vec+self.h_param) / (grad_b_num_vec+self.h_param) - 1)
+        
         print("mean relative error: ", np.mean(rel_error))
 
 
@@ -181,18 +183,26 @@ class ANN:
     """
     
     act_h = [None] * (self.num_hlayers)
-    s = [None] * (self.num_hlayers)
-    normlz_s = [None] * (self.num_hlayers)
-    final_s = [None] * (self.num_hlayers)
+    s = [None] * (self.num_hlayers+1)
+    normlz_s = [None] * (self.num_hlayers) # deze moeten wss ook 1tje meer
+    final_s = [None] * (self.num_hlayers)# deze moeten wss ook 1tje meer
     mu = [None] * (self.num_hlayers)
     var = [None] * (self.num_hlayers)
     
-    # first until second-to-last layer (the hidden layers, not the output one)
-    for i in range(self.num_hlayers):
-      if i == 0:
-        s[i] = np.dot(self.w[i], X) + self.b[i] 
-      else:
-        s[i] = np.dot(self.w[i], act_h[i-1]) + self.b[i] 
+    # first layer
+    s[0] = np.dot(self.w[0], X) + self.b[0]
+    if batch_norm:
+        mu[0] = 1/s[0].shape[1] * np.sum(s[0], axis = 1)
+        var[0] = 1/ s[0].shape[1] * np.sum(((s[0].T - mu[0]).T)**2, axis = 1)
+        normlz_s[0] = self.batch_norm(s[0], mu[0], var[0])
+        final_s[0] = self.gamma[0] * normlz_s[0] + self.beta[0]
+        act_h[0] = np.maximum(0, final_s[0])
+    else:
+        act_h[0] = np.maximum(0, s[0])
+    
+    # hidden layers
+    for i in range(1, self.num_hlayers):
+      s[i] = np.dot(self.w[i], act_h[i-1]) + self.b[i] 
       if batch_norm:
         mu[i] = 1/s[i].shape[1] * np.sum(s[i], axis = 1)
         var[i] = 1/ s[i].shape[1] * np.sum(((s[i].T - mu[i]).T)**2, axis = 1)
@@ -201,9 +211,15 @@ class ANN:
         act_h[i] = np.maximum(0, final_s[i])
       else:
         act_h[i] = np.maximum(0, s[i])
-    # this part is not put into backprop now
-    s_last = np.dot(self.w[self.num_hlayers], act_h[self.num_hlayers-1]) + self.b[self.num_hlayers]
-    Y_pred = self.softmax(s_last)
+        
+    # last layer
+    lst = self.num_hlayers
+    s[lst] = np.dot(self.w[lst], act_h[lst-1]) + self.b[lst]
+    Y_pred = self.softmax(s[lst]) # heb je deze laatste ook nodig in h act voor de backward passs?
+    
+    
+    #print("act h full: ", act_h)
+    #print("s full: ", s)
     return Y_pred, act_h, X, s, normlz_s, mu, var
 
   def softmax(self, Y_pred_lin):
@@ -257,7 +273,8 @@ class ANN:
     return accuracy
 
 
-  def compute_gradients(self, X_batch, y_true_batch, y_pred_batch, act_h, s, normlz_s, mu, var):
+  def compute_gradients(self, X_batch, y_true_batch, y_pred_batch, act_h, \
+                        s, normlz_s, mu, var, batch_norm=True):
     """
     compute the gradients of the loss, so the parameters can be updated in the direction of the steepest gradient. 
     """
@@ -270,9 +287,10 @@ class ANN:
     grad_batch = self.compute_gradient_batch(y_true_batch, y_pred_batch)
     
     # gradient of W and b for the last layer
-    last_grad = (1/ self.batch_size) * np.dot(grad_batch, act_h[self.num_hlayers-1].T) + 2*self.labda*self.w[self.num_hlayers]
-    grad_w[-1] = last_grad
-    grad_b[-1] = (1/ self.batch_size) * np.sum(grad_batch, axis=1).reshape(-1, 1)
+    grad_w[-1] = (1/ self.batch_size) * np.dot(grad_batch, act_h[self.num_hlayers-1].T) \
+                + 2*self.labda*self.w[self.num_hlayers]
+    #grad_b[-1] = (1/ self.batch_size) * np.sum(grad_batch, axis=1).reshape(-1, 1)
+    grad_b[-1] = (1/ self.batch_size) * np.dot(grad_batch, np.ones((self.batch_size,1)))
     
     #propagate the gradient to previous layers
     grad_batch = np.dot(self.w[-1].T, grad_batch)
@@ -290,18 +308,20 @@ class ANN:
     # (all the hidden layers, not the output one)
     for l in reversed(range(self.num_hlayers)):
       
-      grad_gamma[l] = (1/self.batch_size) * np.dot((grad_batch * normlz_s[l]), np.ones(self.batch_size)).reshape(-1,1)
-      grad_beta[l] = (1/self.batch_size) * np.dot(grad_batch, np.ones(self.batch_size)).reshape(-1,1)
-      #propagate gradient through scale&shift and batch norm
-      grad_batch = grad_batch * np.dot(self.gamma[l], np.ones((self.batch_size,1)).T)
-      grad_batch = self.batch_norm_backpass(grad_batch, s[l], mu[l], var[l])
+      if batch_norm: 
+        grad_gamma[l] = (1/self.batch_size) * np.dot((grad_batch * normlz_s[l]), np.ones(self.batch_size)).reshape(-1,1)
+        grad_beta[l] = (1/self.batch_size) * np.dot(grad_batch, np.ones(self.batch_size)).reshape(-1,1)
+        #propagate gradient through scale&shift and batch norm
+        grad_batch = grad_batch * np.dot(self.gamma[l], np.ones((self.batch_size,1)).T)
+        grad_batch = self.batch_norm_backpass(grad_batch, s[l], mu[l], var[l])
       
       # compute gradients for w and b for these layers
       if l == 0:
         grad_w[l] = (1/ self.batch_size) * np.dot(grad_batch, X_batch.T) + 2*self.labda*self.w[l]
       else:
         grad_w[l] = (1/ self.batch_size) * np.dot(grad_batch, act_h[l-1].T) + 2*self.labda*self.w[l]
-      grad_b[l] = (1/ self.batch_size) * np.sum(grad_batch, axis=1).reshape(-1, 1)
+      #grad_b[l] = (1/ self.batch_size) * np.sum(grad_batch, axis=1).reshape(-1, 1)
+      grad_b[l] = (1/ self.batch_size) * np.dot(grad_batch, np.ones((self.batch_size,1)))
     
       if l > 0: 
         # propagate gradient backwards
@@ -340,18 +360,18 @@ class ANN:
     grad_batch -= 1 / self.batch_size * (bigD * np.outer(c, np.ones((self.batch_size))))
     return grad_batch
   
-  def update_params(self, grad_b, grad_w, grad_beta, grad_gamma):
+  def update_params(self, grad_b, grad_w, grad_beta, grad_gamma, batch_norm = True):
     """
     Update the parameters in the direction of the steepest gradient
     Beta and gamma are the scaling and shifting parameters of batch norm
     """
-    
     for k in range(self.num_hlayers+1):
       self.w[k] = self.w[k] - self.lr*grad_w[k]
       self.b[k] = self.b[k] - self.lr*grad_b[k]
-    for k in range(self.num_hlayers):
-      self.beta[k] = self.beta[k] - self.lr*grad_beta[k]
-      self.gamma[k] = self.gamma[k] - self.lr*grad_gamma[k]
+    if batch_norm: 
+      for k in range(self.num_hlayers):
+        self.beta[k] = self.beta[k] - self.lr*grad_beta[k]
+        self.gamma[k] = self.gamma[k] - self.lr*grad_gamma[k]
 
   def cyclic_lr(self, t):
     """
