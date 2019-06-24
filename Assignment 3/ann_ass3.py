@@ -20,13 +20,13 @@ class ANN:
         "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
-        "labda": 0.005, #0, #8*1e-4,  # regularization parameter
+        "labda": 8* 1e-3, #0, #8*1e-4,  # regularization parameter
         "batch_size": 100, # examples per minibatch
-        "epochs": 48,  #number of epochs
+        "epochs": 30,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[50,50,50,50],
+        "h_sizes":[50, 50],
         "alpha": 0.7
     }
 
@@ -157,7 +157,7 @@ class ANN:
         plt.legend()
         plt.title(("Gradient check of w", k, ", batch size = " + str(X.shape[1])))
         plt.show()
-        rel_error = abs((grad_w_vec+self.h_param) / (grad_w_num_vec+self.h_param) - 1)
+        rel_error = abs((grad_w_vec+self.h_param**2) / (grad_w_num_vec+self.h_param**2) - 1)
         
         print("mean relative error: ", np.mean(rel_error))
 
@@ -171,7 +171,7 @@ class ANN:
         plt.legend()
         plt.title(("Gradient check of b", k, ", batch size = " + str(X.shape[1])))
         plt.show()
-        rel_error = abs((grad_b_vec+self.h_param) / (grad_b_num_vec+self.h_param) - 1)
+        rel_error = abs((grad_b_vec+self.h_param**2) / (grad_b_num_vec+self.h_param**2) - 1)
         
         print("mean relative error: ", np.mean(rel_error))
 
