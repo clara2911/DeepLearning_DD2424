@@ -1,7 +1,7 @@
 """
-This is the main file of Assignment 1 for DD2424 Deep Learning
+This is the main file of Assignment 3 for DD2424 Deep Learning
 This assignment implements a k-layer neural network trained with 
-stochastic gradient descent and a cyclical learning rate.
+stochastic gradient descent and batch normalization (implemented from scratch).
 
 Author: Clara Tump
 
@@ -34,11 +34,11 @@ def main():
   X_train, y_train , Y_train = load_data(batch_file = "data_batch_1", k=num_classes)
   X_test, y_test, Y_test = load_data(batch_file = "test_batch")
   X_val, y_val , Y_val = load_data(batch_file = "data_batch_2")
-  ann1 = ANN(X_train[:2,:3], Y_train[:,:3], batch_norm_flag = True)
+  ann1 = ANN(X_train[:3,:5], Y_train[:,:5], batch_norm_flag = False)
   #ann1 = ANN(X_train, Y_train, batch_norm_flag = True)
   # uncomment this line to check gradients. remember to init ANN with same no. data points / feats
-  ann1.check_gradients(X_train[:2, :3], Y_train[:, :3], method='centered_diff')
-  #ann1.train(X_train[:2,:3], Y_train[:,:3], X_val[:2,:3], Y_val[:,:3], verbosity= True)
+  ann1.check_gradients(X_train[:3, :5], Y_train[:, :5], method='centered_diff')
+  #ann1.train(X_train[:3,:5], Y_train[:,:5], X_val[:3,:5], Y_val[:,:5], verbosity= True)
   #ann1.train(X_train, Y_train, X_val, Y_val, verbosity= True)
   #Y_pred_test, act_h_test, _,_,_,_,_ = ann1.evaluate(X_test)
   #test_acc = ann1.compute_accuracy(Y_pred_test, Y_test)
