@@ -20,13 +20,14 @@ class ANN:
         "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
-        "labda": 8*1e-4, #0, #8*1e-4,  # regularization parameter
+        "labda": 0.005, #0, #8*1e-4,  # regularization parameter
         "batch_size": 100, # examples per minibatch
         "epochs": 32,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[50]
+        "h_sizes":[5,4,3],
+        "alpha": 0.7
     }
 
     for var, default in var_defaults.items():
@@ -41,9 +42,13 @@ class ANN:
     self.num_hlayers = len(self.h_sizes)
     self.w = self.init_weight_mats()
     self.b = self.init_biases()
-    self.ns = 2*int(self.n/self.batch_size)
+    print("n: ", self.n)
+    self.ns = 5*int(self.n/self.batch_size)
     self.beta = self.init_biases()
     self.gamma = self.init_gamma()
+    self.mu_avg = None
+    self.var_avg = None
+    
 
 
   def init_weight_mats(self):
@@ -79,9 +84,7 @@ class ANN:
       var = np.sqrt(2 / input_size)
       gamma[i] = np.random.normal(self.m_weights, var, (input_size,1))
     return gamma
-      
-
-
+  
   def init_biases(self):
     """
     Initialize bias vector for the first layer and the second layer
@@ -185,14 +188,16 @@ class ANN:
     
     act_h = [None] * (self.num_hlayers)
     s = [None] * (self.num_hlayers+1)
-    normlz_s = [None] * (self.num_hlayers) # deze moeten wss ook 1tje meer
-    final_s = [None] * (self.num_hlayers)# deze moeten wss ook 1tje meer
+    normlz_s = [None] * (self.num_hlayers)
+    final_s = [None] * (self.num_hlayers)
     mu = [None] * (self.num_hlayers)
     var = [None] * (self.num_hlayers)
     
     # first layer
     s[0] = np.dot(self.w[0], X) + self.b[0]
     if batch_norm:
+        print("this is the first thing im putting in mu")
+        print(1/s[0].shape[1] * np.sum(s[0], axis = 1))
         mu[0] = 1/s[0].shape[1] * np.sum(s[0], axis = 1)
         var[0] = 1/ s[0].shape[1] * np.sum(((s[0].T - mu[0]).T)**2, axis = 1)
         normlz_s[0] = self.batch_norm(s[0], mu[0], var[0])
@@ -205,6 +210,8 @@ class ANN:
     for i in range(1, self.num_hlayers):
       s[i] = np.dot(self.w[i], act_h[i-1]) + self.b[i] 
       if batch_norm:
+        print("Im also putting this into mu")
+        print(1/s[i].shape[1] * np.sum(s[i], axis = 1))
         mu[i] = 1/s[i].shape[1] * np.sum(s[i], axis = 1)
         var[i] = 1/ s[i].shape[1] * np.sum(((s[i].T - mu[i]).T)**2, axis = 1)
         normlz_s[i] = self.batch_norm(s[i], mu[i], var[i])
@@ -216,8 +223,72 @@ class ANN:
     # last layer
     lst = self.num_hlayers
     s[lst] = np.dot(self.w[lst], act_h[lst-1]) + self.b[lst]
-    Y_pred = self.softmax(s[lst]) # heb je deze laatste ook nodig in h act voor de backward passs?
+    Y_pred = self.softmax(s[lst])
     
+    # update running averages of mean and variance (needed in test phase)
+    self.update_mu_var_avg(mu, var)
+    
+    return Y_pred, act_h, X, s, normlz_s, mu, var
+  
+  def update_mu_var_avg(self, mu, var):
+    print("mu: ")
+    print(mu)
+    print("var: ")
+    print(var)
+    if self.mu_avg == None:
+      print("mu avg is none")
+      self.mu_avg = mu
+    else:
+      print("mu avg is not none")
+      print(self.mu_avg)
+      self.mu_avg = [self.alpha * self.mu_avg[l] + (1-self.alpha) * mu[l] for l in range(len(mu))]
+    if self.var_avg == None:
+      self.var_avg = var
+    else:
+      self.var_avg = [self.alpha * self.var_avg[l] + (1-self.alpha) * var[l] for l in range(len(var))]
+  
+  
+  
+  def evaluate_test(self, X, batch_norm=True):
+    """
+    use the classifier with current weights and bias to make a 
+    prediction of the one-hot encoded targets (Y)
+    test data: dxN
+    w: Kxd
+    b: Kx1
+    output Y_pred = kxN
+    """
+    
+    act_h = [None] * (self.num_hlayers)
+    s = [None] * (self.num_hlayers+1)
+    normlz_s = [None] * (self.num_hlayers) 
+    final_s = [None] * (self.num_hlayers)
+    mu = [None] * (self.num_hlayers)
+    var = [None] * (self.num_hlayers)
+    
+    # first layer
+    s[0] = np.dot(self.w[0], X) + self.b[0]
+    if batch_norm:
+        normlz_s[0] = self.batch_norm(s[0], self.mu_avg[0], self.var_avg[0])
+        final_s[0] = self.gamma[0] * normlz_s[0] + self.beta[0]
+        act_h[0] = np.maximum(0, final_s[0])
+    else:
+        act_h[0] = np.maximum(0, s[0])
+    
+    # hidden layers
+    for i in range(1, self.num_hlayers):
+      s[i] = np.dot(self.w[i], act_h[i-1]) + self.b[i] 
+      if batch_norm:
+        normlz_s[i] = self.batch_norm(s[i], mu_avg[i], var_avg[i])
+        final_s[i] = self.gamma[i] * normlz_s[i] + self.beta[i]
+        act_h[i] = np.maximum(0, final_s[i])
+      else:
+        act_h[i] = np.maximum(0, s[i])
+        
+    # last layer
+    lst = self.num_hlayers
+    s[lst] = np.dot(self.w[lst], act_h[lst-1]) + self.b[lst]
+    Y_pred = self.softmax(s[lst]) 
     return Y_pred, act_h, X, s, normlz_s, mu, var
 
   def softmax(self, Y_pred_lin):
