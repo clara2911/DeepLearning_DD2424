@@ -34,7 +34,7 @@ def main():
   X_train, y_train , Y_train = load_data(batch_file = "data_batch_1", k=num_classes)
   X_test, y_test, Y_test = load_data(batch_file = "test_batch")
   X_val, y_val , Y_val = load_data(batch_file = "data_batch_2")
-  ann1 = ANN(X_train[:3,:5], Y_train[:,:5], batch_norm_flag = False)
+  ann1 = ANN(X_train[:3,:5], Y_train[:,:5], batch_norm_flag = True)
   #ann1 = ANN(X_train, Y_train, batch_norm_flag = True)
   # uncomment this line to check gradients. remember to init ANN with same no. data points / feats
   ann1.check_gradients(X_train[:3, :5], Y_train[:, :5], method='centered_diff')
