@@ -20,14 +20,13 @@ class ANN:
         "lr": 1e-5,  #learning rate
         "m_weights": 0,  #mean of the weights
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
-        "labda": 0, #0, #8*1e-4,  # regularization parameter
-        # there was an error when no. examples are 8 and batch size 4. Maybe a mistake?
-        "batch_size": 5, # examples per minibatch
-        "epochs": 1,  #number of epochs
+        "labda": 8*1e-4, #0, #8*1e-4,  # regularization parameter
+        "batch_size": 100, # examples per minibatch
+        "epochs": 32,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[4,6,8, 2]
+        "h_sizes":[50]
     }
 
     for var, default in var_defaults.items():
@@ -119,7 +118,6 @@ class ANN:
         grad_b, grad_w, grad_beta, grad_gamma = self.compute_gradients(X_batch, \
                                    Y_batch, Y_pred, act_h, s, normlz_s, mu, var, \
                                    batch_norm=self.batch_norm_flag)
-        #hello = 4 * hello
         self.update_params(grad_b, grad_w, grad_beta, grad_gamma, batch_norm = self.batch_norm_flag)
         
         self.lr = self.cyclic_lr(i*num_batches + j)
@@ -136,9 +134,6 @@ class ANN:
     """
     grad_w_num = np.zeros((self.k, self.d))
     Y_pred, h_act, _, s, normlz_s, mu, var = self.evaluate(X, batch_norm=self.batch_norm_flag)
-    
-    print("coming out of evaluate going into compute grads")
-    print("s length: ", len(s))
     grad_b, grad_w, grad_beta, grad_gamma  = self.compute_gradients(X, Y, Y_pred, h_act, s, normlz_s, mu, var, batch_norm=self.batch_norm_flag)
     if method == 'finite_diff':
       grad_b_num, grad_w_num = self.compute_gradient_num_fast(X, Y)
@@ -281,9 +276,6 @@ class ANN:
     """
     compute the gradients of the loss, so the parameters can be updated in the direction of the steepest gradient. 
     """
-    print("hier ben ik weer")
-    print("in the beginning of compute gradients")
-    print("length s: ", len(s))
     grad_b = [None]*(self.num_hlayers+1) # check if this shouldnt be one shorter
     grad_w = [None]*(self.num_hlayers+1)
     grad_gamma = [None]*(self.num_hlayers)
@@ -319,11 +311,6 @@ class ANN:
         grad_beta[l] = (1/self.batch_size) * np.dot(grad_batch, np.ones(self.batch_size)).reshape(-1,1)
         #propagate gradient through scale&shift and batch norm
         grad_batch = grad_batch * np.dot(self.gamma[l], np.ones((self.batch_size,1)).T)
-        #print("l: ", l)
-        #print("length s: ", len(s))
-        #print(" s_l : ", s[l])
-        ##print("shape mu: ", mu.shape, " mu_l: ", mu[l])
-        #print("shape var: ", var.shape, "var_l: ", var[l])
         grad_batch = self.batch_norm_backpass(grad_batch, s[l], mu[l], var[l])
       
       # compute gradients for w and b for these layers
@@ -403,8 +390,8 @@ class ANN:
     Compute and store the performance (cost and accuracy) of the model after every epoch, 
     so it can be used later to plot the evolution of the performance
     """
-    Y_pred_train, act_h = self.evaluate(X_train, self.batch_norm_flag)
-    Y_pred_val, act_h_2 = self.evaluate(X_val, self.batch_norm_flag)
+    Y_pred_train, act_h, _, _, _, _, _ = self.evaluate(X_train, self.batch_norm_flag)
+    Y_pred_val, act_h_2, _, _, _, _, _ = self.evaluate(X_val, self.batch_norm_flag)
     cost_train = self.compute_cost(X_train, Y_pred_train)
     acc_train = self.compute_accuracy(Y_pred_train, Y_train)
     cost_val = self.compute_cost(X_val, Y_pred_val)
