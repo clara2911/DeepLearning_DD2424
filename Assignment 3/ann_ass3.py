@@ -22,11 +22,11 @@ class ANN:
         "sigma_weights": "sqrt_dims",  # variance of the weights: input a float or string "sqrt_dims" which will set it as 1/sqrt(d)
         "labda": 0.005, #0, #8*1e-4,  # regularization parameter
         "batch_size": 100, # examples per minibatch
-        "epochs": 32,  #number of epochs
+        "epochs": 48,  #number of epochs
         "h_param": 1e-6,  # parameter h for numerical grad check
         "lr_max": 1e-1, # maximum for cyclical learning rate
         "lr_min": 1e-5, # minimum for cyclical learning rate
-        "h_sizes":[5,4,3],
+        "h_sizes":[50,50,50,50],
         "alpha": 0.7
     }
 
@@ -196,8 +196,6 @@ class ANN:
     # first layer
     s[0] = np.dot(self.w[0], X) + self.b[0]
     if batch_norm:
-        print("this is the first thing im putting in mu")
-        print(1/s[0].shape[1] * np.sum(s[0], axis = 1))
         mu[0] = 1/s[0].shape[1] * np.sum(s[0], axis = 1)
         var[0] = 1/ s[0].shape[1] * np.sum(((s[0].T - mu[0]).T)**2, axis = 1)
         normlz_s[0] = self.batch_norm(s[0], mu[0], var[0])
@@ -210,8 +208,6 @@ class ANN:
     for i in range(1, self.num_hlayers):
       s[i] = np.dot(self.w[i], act_h[i-1]) + self.b[i] 
       if batch_norm:
-        print("Im also putting this into mu")
-        print(1/s[i].shape[1] * np.sum(s[i], axis = 1))
         mu[i] = 1/s[i].shape[1] * np.sum(s[i], axis = 1)
         var[i] = 1/ s[i].shape[1] * np.sum(((s[i].T - mu[i]).T)**2, axis = 1)
         normlz_s[i] = self.batch_norm(s[i], mu[i], var[i])
@@ -226,21 +222,15 @@ class ANN:
     Y_pred = self.softmax(s[lst])
     
     # update running averages of mean and variance (needed in test phase)
-    self.update_mu_var_avg(mu, var)
+    if batch_norm:
+      self.update_mu_var_avg(mu, var)
     
     return Y_pred, act_h, X, s, normlz_s, mu, var
   
   def update_mu_var_avg(self, mu, var):
-    print("mu: ")
-    print(mu)
-    print("var: ")
-    print(var)
     if self.mu_avg == None:
-      print("mu avg is none")
       self.mu_avg = mu
     else:
-      print("mu avg is not none")
-      print(self.mu_avg)
       self.mu_avg = [self.alpha * self.mu_avg[l] + (1-self.alpha) * mu[l] for l in range(len(mu))]
     if self.var_avg == None:
       self.var_avg = var
