@@ -6,16 +6,6 @@ stochastic gradient descent and batch normalization (implemented from scratch).
 Author: Clara Tump
 
 
-
-
-# TODO
-# keep track of moving average
-# change evaluate so that in test phase the mu and var are given instead of
-# computed from the batch
-# check the gradients <-- correct!
-# 
-"""
-
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
@@ -44,7 +34,7 @@ def main():
   X_test, y_test, Y_test = load_data(batch_file = "test_batch")
   X_val, y_val , Y_val = load_data(batch_file = "data_batch_2")
   #ann1 = ANN(X_train[:10,:6], Y_train[:,:6], batch_norm_flag = True)
-  ann1 = ANN(X_train, Y_train, batch_norm_flag = False)
+  ann1 = ANN(X_train, Y_train, batch_norm_flag = True)
   # uncomment this line to check gradients. remember to init ANN with same no. data points / feats
   #ann1.check_gradients(X_train[:10, :6], Y_train[:, :6], method='centered_diff')
   #ann1.train(X_train[:3,:5], Y_train[:,:5], X_val[:3,:5], Y_val[:,:5], verbosity= True)
